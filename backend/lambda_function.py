@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import re
+import tempfile
 import uuid
 from email.parser import BytesParser
 from email.policy import default as default_email_policy
@@ -12,7 +13,7 @@ import boto3
 from botocore.config import Config
 from services import sortia_service, document_service, file_validation, viewer_service
 
-TMP_UPLOADS = Path('/tmp/uploads')
+TMP_UPLOADS = Path(tempfile.gettempdir()) / 'uploads'
 TMP_UPLOADS.mkdir(parents=True, exist_ok=True)
 S3_BUCKET = os.environ.get('SORTIA_S3_BUCKET', 'sortia-ui-984625844016')
 REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
