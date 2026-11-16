@@ -716,7 +716,7 @@ export default function App() {
                   </form>
                 </div>
                 {selectedFile && (
-                  <div className="filePill" style={{ maxWidth: '820px' }}>
+                  <div className="filePill" style={{ maxWidth: '820px', margin: '8px auto 0', display: 'flex', justifyContent: 'center' }}>
                     <span>Attached · {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
                     <button
                       className="filePillRemove"

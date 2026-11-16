@@ -5,17 +5,23 @@
 }
 
 :root {
-  --bg: #0b0313;
-  --panel: #180a29;
-  --panel-strong: #23103b;
-  --line: rgba(123, 44, 255, 0.22);
-  --text: #f7f7fb;
-  --muted: #b39ddb;
-  --a1: #7b2cff;
-  --a1-bright: #b98eff;
-  --a2: #2d0b56;
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg: #020c16;
+  --panel: #051a2c;
+  --panel-strong: #0a253e;
+  --panel-elevated: #0a253e;
+  --panel-alt: #081e33;
+  --line: rgba(7, 140, 255, 0.18);
+  --line-strong: rgba(7, 140, 255, 0.4);
+  --text: #f0f7ff;
+  --muted: #849bb4;
+  --a1: #078cff;
+  --a1-bright: #38bdf8;
+  --a2: #0a3154;
+  --cyan: #38bdf8;
+  --success: #34d399;
+  --card-bg: rgba(5, 26, 44, 0.85);
+  --v: #078cff;
+  --c: #38bdf8;
 }
 
 @keyframes angleSpin {
@@ -138,7 +144,7 @@ header {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
-  background: rgba(123, 44, 255, 0.08);
+  background: rgba(7, 140, 255, 0.08);
   color: #e6d8ff;
   border-radius: 999px;
   padding: 8px 15px;
@@ -152,9 +158,9 @@ header {
 .enter:hover, .ghost:hover {
   transform: translateY(-1px);
   color: #ffffff;
-  border-color: rgba(123, 44, 255, 0.65);
-  background: rgba(123, 44, 255, 0.22);
-  box-shadow: 0 8px 26px rgba(123, 44, 255, 0.28);
+  border-color: rgba(7, 140, 255, 0.65);
+  background: rgba(7, 140, 255, 0.22);
+  box-shadow: 0 8px 26px rgba(7, 140, 255, 0.28);
 }
 
 /* Home Landing Page */
@@ -230,7 +236,7 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(123, 44, 255, 0.35);
+  border: 1px solid rgba(7, 140, 255, 0.35);
   border-radius: 22px;
   background: var(--panel);
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.72);
@@ -256,9 +262,9 @@ header {
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
-  border: 1px solid rgba(123, 44, 255, 0.25);
+  border: 1px solid rgba(7, 140, 255, 0.25);
   border-radius: 14px;
-  background: rgba(123, 44, 255, 0.12);
+  background: rgba(7, 140, 255, 0.12);
   color: #d6bfff;
   cursor: pointer;
   display: grid;
@@ -269,7 +275,7 @@ header {
 .startAttach:hover, .plus:hover {
   color: #ffffff;
   border-color: rgba(185, 142, 255, 0.65);
-  background: rgba(123, 44, 255, 0.26);
+  background: rgba(7, 140, 255, 0.26);
 }
 
 .send, .chatSend {
@@ -284,7 +290,7 @@ header {
   transition: 0.2s;
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 28px rgba(123, 44, 255, 0.42);
+  box-shadow: 0 8px 28px rgba(7, 140, 255, 0.42);
 }
 
 .send:hover, .chatSend:hover {
@@ -348,7 +354,7 @@ header {
   min-height: auto;
   text-align: left;
   padding: 14px 16px;
-  border: 1px solid rgba(123, 44, 255, 0.24);
+  border: 1px solid rgba(7, 140, 255, 0.24);
   border-radius: 16px;
   color: var(--text);
   background: var(--panel);
@@ -443,7 +449,7 @@ header {
 
 /* Deep Obsidian-Plum Sidebar matching #0b0313 workspace */
 .side {
-  border-right: 1px solid rgba(123, 44, 255, 0.20);
+  border-right: 1px solid rgba(7, 140, 255, 0.20);
   background: rgba(11, 3, 19, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -461,8 +467,8 @@ header {
 }
 
 .new {
-  border: 1px solid rgba(123, 44, 255, 0.42);
-  background: rgba(123, 44, 255, 0.14);
+  border: 1px solid rgba(7, 140, 255, 0.42);
+  background: rgba(7, 140, 255, 0.14);
   color: #d6bfff;
   border-radius: 12px;
   height: 38px;
@@ -482,7 +488,7 @@ header {
 }
 
 .new:hover {
-  background: rgba(123, 44, 255, 0.28);
+  background: rgba(7, 140, 255, 0.28);
   border-color: #b98eff;
   color: #ffffff;
 }
@@ -533,11 +539,11 @@ header {
 }
 
 .histRow:hover {
-  background: rgba(123, 44, 255, 0.14);
+  background: rgba(7, 140, 255, 0.14);
 }
 
 .histRow.on {
-  background: rgba(123, 44, 255, 0.20);
+  background: rgba(7, 140, 255, 0.20);
   box-shadow: inset 0 0 0 1px rgba(185, 142, 255, 0.34);
 }
 
@@ -623,13 +629,13 @@ header {
 
 .histIcon.edit {
   color: #d6bfff;
-  background: rgba(123, 44, 255, 0.24);
+  background: rgba(7, 140, 255, 0.24);
   border: 1px solid rgba(185, 142, 255, 0.48);
 }
 
 .histIcon.edit:hover {
   color: #ffffff;
-  background: rgba(123, 44, 255, 0.45);
+  background: rgba(7, 140, 255, 0.45);
   border-color: #b98eff;
   transform: scale(1.04);
 }
@@ -745,7 +751,7 @@ header {
 }
 
 .titleEditable:hover {
-  background: rgba(123, 44, 255, 0.18);
+  background: rgba(7, 140, 255, 0.18);
 }
 
 .chatHead small {
@@ -795,7 +801,7 @@ header {
 .ai {
   align-self: flex-start;
   background: var(--panel);
-  border: 1px solid rgba(123, 44, 255, 0.24);
+  border: 1px solid rgba(7, 140, 255, 0.24);
   border-radius: 18px 18px 18px 4px;
   width: 100%;
 }
@@ -834,7 +840,7 @@ header {
 }
 
 .userFileViewBtn {
-  background: rgba(123, 44, 255, 0.22);
+  background: rgba(7, 140, 255, 0.22);
   border: 1px solid rgba(185, 142, 255, 0.5);
   color: #e9dcff;
   border-radius: 8px;
@@ -856,7 +862,7 @@ header {
 .thinking {
   align-self: flex-start;
   padding: 13px 16px;
-  border: 1px solid rgba(123, 44, 255, 0.28);
+  border: 1px solid rgba(7, 140, 255, 0.28);
   border-radius: 18px 18px 18px 4px;
   background: var(--panel);
   display: flex;
@@ -909,7 +915,7 @@ header {
   max-width: 820px;
   margin: auto;
   padding: 8px;
-  border: 1px solid rgba(123, 44, 255, 0.25);
+  border: 1px solid rgba(7, 140, 255, 0.25);
   border-radius: 18px;
   background: var(--panel);
   box-shadow: 0 12px 42px rgba(0, 0, 0, 0.55);
@@ -997,7 +1003,7 @@ header {
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 700;
-  background: rgba(123, 44, 255, 0.26);
+  background: rgba(7, 140, 255, 0.26);
   border: 1px solid rgba(185, 142, 255, 0.5);
   color: #f2e8ff;
 }
@@ -1071,7 +1077,7 @@ header {
   padding: 9px 14px;
   border-radius: 10px;
   background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(123, 44, 255, 0.22);
+  border: 1px solid rgba(7, 140, 255, 0.22);
   min-height: 38px;
 }
 
@@ -1126,7 +1132,7 @@ header {
 }
 
 .tabPill.active, .tabPill:hover {
-  background: rgba(123, 44, 255, 0.24);
+  background: rgba(7, 140, 255, 0.24);
   border-color: rgba(185, 142, 255, 0.65);
   color: #ffffff;
 }
@@ -1141,7 +1147,7 @@ header {
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(123, 44, 255, 0.22);
+  border: 1px solid rgba(7, 140, 255, 0.22);
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -1175,7 +1181,7 @@ header {
 .candSub {
   font-size: 12px;
   color: #d6bfff;
-  background: rgba(123, 44, 255, 0.18);
+  background: rgba(7, 140, 255, 0.18);
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -1219,7 +1225,7 @@ header {
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(123, 44, 255, 0.22);
+  border: 1px solid rgba(7, 140, 255, 0.22);
 }
 
 .signalHead {
@@ -1250,7 +1256,7 @@ header {
 }
 
 .weightTag.medium {
-  background: rgba(123, 44, 255, 0.22);
+  background: rgba(7, 140, 255, 0.22);
   color: #d6bfff;
   border: 1px solid rgba(185, 142, 255, 0.45);
 }
@@ -1282,7 +1288,7 @@ header {
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(123, 44, 255, 0.22);
+  border: 1px solid rgba(7, 140, 255, 0.22);
 }
 
 .routingRow {
@@ -1310,7 +1316,7 @@ header {
   flex-direction: column;
   gap: 8px;
   padding-top: 6px;
-  border-top: 1px solid rgba(123, 44, 255, 0.18);
+  border-top: 1px solid rgba(7, 140, 255, 0.18);
 }
 
 .followLabel {
@@ -1327,7 +1333,7 @@ header {
 }
 
 .followChip {
-  background: rgba(123, 44, 255, 0.16);
+  background: rgba(7, 140, 255, 0.16);
   border: 1px solid rgba(185, 142, 255, 0.36);
   color: #eadcff;
   border-radius: 999px;
@@ -1339,7 +1345,7 @@ header {
 }
 
 .followChip:hover {
-  background: rgba(123, 44, 255, 0.34);
+  background: rgba(7, 140, 255, 0.34);
   border-color: #ffffff;
   color: #ffffff;
 }
@@ -1364,7 +1370,7 @@ header {
 
 /* Side-by-side Document Viewer */
 .docViewer {
-  border-left: 1px solid rgba(123, 44, 255, 0.22);
+  border-left: 1px solid rgba(7, 140, 255, 0.22);
   background: rgba(11, 3, 19, 0.96);
   display: flex;
   flex-direction: column;
@@ -1413,7 +1419,7 @@ header {
   height: 30px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: rgba(123, 44, 255, 0.12);
+  background: rgba(7, 140, 255, 0.12);
   color: #e6d8ff;
   display: grid;
   place-items: center;
@@ -1422,7 +1428,7 @@ header {
 }
 
 .docViewerBtn:hover, .docViewerCloseBtn:hover {
-  background: rgba(123, 44, 255, 0.30);
+  background: rgba(7, 140, 255, 0.30);
   color: #ffffff;
 }
 
@@ -1446,7 +1452,7 @@ header {
 .docTab.active {
   color: #ffffff;
   border-bottom-color: #9d5eff;
-  background: rgba(123, 44, 255, 0.12);
+  background: rgba(7, 140, 255, 0.12);
 }
 
 .docViewerBody {
@@ -1491,7 +1497,7 @@ header {
   justify-content: space-between;
   gap: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(123, 44, 255, 0.18);
+  border-bottom: 1px solid rgba(7, 140, 255, 0.18);
   font-size: 13px;
 }
 
@@ -1545,7 +1551,7 @@ header {
     height: 36px;
     border-radius: 10px;
     border: 1px solid var(--line);
-    background: rgba(123, 44, 255, 0.14);
+    background: rgba(7, 140, 255, 0.14);
     color: #e6d8ff;
     cursor: pointer;
   }
@@ -1556,7 +1562,7 @@ header {
     padding: 7px 12px;
     border-radius: 999px;
     border: 1px solid var(--line);
-    background: rgba(123, 44, 255, 0.14);
+    background: rgba(7, 140, 255, 0.14);
     color: #e6d8ff;
     font-size: 11px;
     font-weight: 700;
