@@ -1,3 +1,5 @@
+import datetime
+import uuid
 import json
 import os
 import random
@@ -345,11 +347,18 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
     # 2. Sanitize PII & prompt injections
     sanitized_res = guardrail_service.sanitize_input(clean)
     if sanitized_res.get('blocked'):
+        trace_code = f"SRT-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         return {
             'type': 'chat',
             'message': sanitized_res.get('message', 'Content rejected by Enterprise BFSI Security Guardrails.'),
-            'guardrails': sanitized_res.get('guardrails'),
+            'guardrail_status': 'BLOCKED',
+            'guardrails': sanitized_res.get('guardrails', {"status": "BLOCKED"}),
             'rejected': True,
+            'trace_id': trace_code,
+            'data': {
+                'trace_id': trace_code,
+                'guardrails': sanitized_res.get('guardrails', {"status": "BLOCKED"})
+            }
         }
     safe_text = sanitized_res['text']
 
@@ -413,6 +422,14 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
                     if parsed.get('type') == 'classification' or 'primary_category' in parsed:
                         parsed['type'] = 'classification'
                         parsed = _enforce_ambiguity_guardrail(parsed)
+                    trace_code = f"SRT-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+                    parsed['trace_id'] = trace_code
+                    parsed['guardrails'] = {
+                        "status": "REDACTED" if sanitized_res.get("pii_detected") else "PASSED",
+                        "pci_dss_sanitized": True,
+                        "redacted_count": sanitized_res.get("guardrails", {}).get("redacted_count", 0),
+                        "redacted_types": sanitized_res.get("guardrails", {}).get("redacted_types", []),
+                    }
                     return _sanitize_ai_output(parsed)
             except Exception as e:
                 print(f"[SORTIA] Bedrock Converse ({model}) warning: {e}")
@@ -426,5 +443,10 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
             'type': 'chat',
             'message': "I'm ready to classify any document or text! Paste an excerpt or attach a file, and I'll determine its content type, subtype, confidence score, and whether human review is needed.",
         }
-    return rule_based_classification_fallback(safe_text, file_name)
+    res = rule_based_classification_fallback(safe_text, file_name)
+    trace_code = f"SRT-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    if isinstance(res, dict):
+        res['trace_id'] = trace_code
+        res['guardrails'] = {"status": "PASSED", "pci_dss_sanitized": True}
+    return res
 

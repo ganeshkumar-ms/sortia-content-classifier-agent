@@ -341,11 +341,14 @@ export default function App() {
     }))
 
     try {
-      const result = await classifyContent({
-        file: fileObj || null,
-        text: cleanText,
-        conversationHistory: apiHistory
-      })
+      const [result] = await Promise.all([
+        classifyContent({
+          file: fileObj || null,
+          text: cleanText,
+          conversationHistory: apiHistory
+        }),
+        new Promise(res => setTimeout(res, 900))
+      ])
 
       const docMeta = result?.document || null
       const enrichedList = nextList.map(m =>
@@ -650,6 +653,7 @@ export default function App() {
                         <ErrorBoundary>
                           <SortiaResultCard
                             data={msg.data}
+                            guardrails={msg.data?.guardrails || msg.guardrails}
                             onFollowUp={(prompt) => executeSend(prompt, null, currentSessionId)}
                           />
                         </ErrorBoundary>

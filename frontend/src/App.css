@@ -5,6 +5,9 @@
 }
 
 :root {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   --bg: #020c16;
   --panel: #051a2c;
   --panel-strong: #0a253e;
@@ -262,20 +265,22 @@ header {
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
-  border: 1px solid rgba(7, 140, 255, 0.25);
+  border: 1px solid rgba(7, 140, 255, 0.28) !important;
   border-radius: 14px;
-  background: rgba(7, 140, 255, 0.12);
-  color: #38bdf8;
+  background: rgba(7, 140, 255, 0.08) !important;
+  color: #38bdf8 !important;
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: all 0.2s ease;
+  transition: 0.25s;
 }
 
 .startAttach:hover, .plus:hover {
-  color: #ffffff;
-  border-color: rgba(185, 142, 255, 0.65);
-  background: rgba(7, 140, 255, 0.26);
+  color: #fff !important;
+  border-color: #078cff !important;
+  background: rgba(7, 140, 255, 0.18) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 18px rgba(7, 140, 255, 0.3) !important;
 }
 
 .send, .chatSend {
@@ -303,15 +308,19 @@ header {
 }
 
 .filePill {
-  max-width: 730px;
-  margin: 10px auto 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 12px auto 0 !important;
+  text-align: center !important;
   gap: 8px;
+  max-width: 730px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(7, 140, 255, 0.08);
+  border: 1px solid rgba(7, 140, 255, 0.28);
   color: #38bdf8;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
 }
 
 .filePillRemove {
@@ -729,13 +738,16 @@ header {
 }
 
 .chatHead {
-  height: 68px;
-  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(18px);
+  background: rgba(2, 12, 22, 0.55) !important;
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .titleEditable {
@@ -791,11 +803,15 @@ header {
 }
 
 .user {
-  align-self: flex-end;
-  background: linear-gradient(135deg, #3c1470, #230945);
-  color: #f7f7fb;
-  border: 1px solid rgba(185, 142, 255, 0.36);
-  border-radius: 18px 18px 4px 18px;
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  background: #051a2c !important;
+  border: 1px solid rgba(7, 140, 255, 0.25) !important;
+  color: #f0f7ff !important;
+  border-radius: 18px 18px 5px 18px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  max-width: min(88%, 680px);
 }
 
 .ai {
