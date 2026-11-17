@@ -161,7 +161,7 @@ export default function App() {
           }
         }
         return { ...s, title: t }
-      })
+      }).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
     } catch {
       return []
     }
@@ -222,6 +222,14 @@ export default function App() {
     setSelectedFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (homeFileInputRef.current) homeFileInputRef.current.value = ''
+  }
+
+  function goHome() {
+    setCurrentSessionId(null)
+    setMessages([])
+    clearSelectedFile()
+    setActiveViewerDoc(null)
+    setView('home')
   }
 
   function handleNewChat() {
@@ -333,13 +341,12 @@ export default function App() {
         const shouldUpdate = !exists.titleLocked && (exists.title === 'New conversation' || isGreeting(exists.title)) && initialTitle !== 'New conversation'
         const updatedTitle = shouldUpdate ? initialTitle : exists.title
         if (updatedTitle !== exists.title) setTitle(updatedTitle)
-        return prev.map(s => s.id === sid ? { ...s, title: updatedTitle, updatedAt: Date.now(), messages: nextList } : s)
+        const updated = { ...exists, title: updatedTitle, updatedAt: Date.now(), messages: nextList }
+        return [updated, ...prev.filter(s => s.id !== sid)]
       }
       setTitle(initialTitle)
-      return [
-        { id: sid, title: initialTitle, titleLocked: false, createdAt: Date.now(), updatedAt: Date.now(), messages: nextList },
-        ...prev
-      ]
+      const newSess = { id: sid, title: initialTitle, titleLocked: false, createdAt: Date.now(), updatedAt: Date.now(), messages: nextList }
+      return [newSess, ...prev.filter(s => s.id !== sid)]
     })
 
     const apiHistory = prevList.slice(-6).map(m => ({
@@ -384,13 +391,15 @@ export default function App() {
       }
 
       const aiTitle = deriveSmartTitle(cleanText, fileObj?.name, result)
-      setSessions(prev => prev.map(s => {
-        if (s.id !== sid) return s
-        const shouldUpgrade = !s.titleLocked && (s.title === 'New conversation' || isGreeting(s.title) || result?.type === 'classification') && aiTitle !== 'New conversation'
-        const nextTitle = shouldUpgrade ? aiTitle : s.title
-        if (nextTitle !== s.title) setTitle(nextTitle)
-        return { ...s, title: nextTitle, updatedAt: Date.now(), messages: finalMessages }
-      }))
+      setSessions(prev => {
+        const target = prev.find(s => s.id === sid)
+        if (!target) return prev
+        const shouldUpgrade = !target.titleLocked && (target.title === 'New conversation' || isGreeting(target.title) || result?.type === 'classification') && aiTitle !== 'New conversation'
+        const nextTitle = shouldUpgrade ? aiTitle : target.title
+        if (nextTitle !== target.title) setTitle(nextTitle)
+        const updated = { ...target, title: nextTitle, updatedAt: Date.now(), messages: finalMessages }
+        return [updated, ...prev.filter(s => s.id !== sid)]
+      })
     } catch (err) {
       const errMsg = {
         id: `err_${Date.now()}`,
@@ -439,7 +448,7 @@ export default function App() {
       {view === 'home' && (
         <section id="home">
           <header>
-            <div className="word">SORTIA</div>
+            <div className="word" onClick={goHome} style={{ cursor: 'pointer' }}>SORTIA</div>
             <button
               className="enter"
               id="enter"
@@ -621,7 +630,7 @@ export default function App() {
                     className="ghost"
                     id="back"
                     type="button"
-                    onClick={() => setView('home')}
+                    onClick={goHome}
                   >
                     <svg className="icon" viewBox="0 0 24 24" width="16" height="16">
                       <path d="m3 10 9-7 9 7" />

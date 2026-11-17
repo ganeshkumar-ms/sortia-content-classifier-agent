@@ -3197,6 +3197,74 @@ html, body {
   line-height: 1.4;
 }
 
+.srtAmbCalcBox {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(3, 10, 18, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.srtAmbCalcHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.srtAmbCalcIcon {
+  font-size: 12px;
+  color: #38bdf8;
+}
+
+.srtAmbFormula {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10.5px;
+  color: #7dd3fc;
+  background: rgba(2, 14, 26, 0.85);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  word-break: break-all;
+}
+
+.srtAmbFactorsGrid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.srtAmbFactorItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.srtAmbFactorItem small {
+  color: #94a3b8;
+}
+
+.srtAmbFactorItem strong {
+  color: #38bdf8;
+}
+
+.srtAmbFactorItem.mit strong {
+  color: #34d399;
+}
+
 /* Security Sensitivity Compact Box */
 .srtSensCompactBox {
   margin-top: 10px;

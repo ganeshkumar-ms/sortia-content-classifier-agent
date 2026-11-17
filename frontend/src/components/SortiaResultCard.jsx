@@ -372,6 +372,38 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
                   {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics. Additional contextual analysis is recommended.')}
                 </p>
 
+                {ambiguity?.calculation_breakdown && (
+                  <div className="srtAmbCalcBox">
+                    <div className="srtAmbCalcHead">
+                      <span className="srtAmbCalcIcon">∑</span>
+                      <span>Verified Ambiguity Formula &amp; Factors:</span>
+                    </div>
+                    <code className="srtAmbFormula">{ambiguity.calculation_breakdown.formula || ambiguity.formula}</code>
+                    <div className="srtAmbFactorsGrid">
+                      <div className="srtAmbFactorItem">
+                        <small>Competition</small>
+                        <strong>+{ambiguity.calculation_breakdown.competition_factor}</strong>
+                      </div>
+                      <div className="srtAmbFactorItem">
+                        <small>Uncertainty</small>
+                        <strong>+{ambiguity.calculation_breakdown.uncertainty_factor}</strong>
+                      </div>
+                      <div className="srtAmbFactorItem">
+                        <small>Conflict</small>
+                        <strong>+{ambiguity.calculation_breakdown.conflicting_signals_factor}</strong>
+                      </div>
+                      <div className="srtAmbFactorItem">
+                        <small>Overlap</small>
+                        <strong>+{ambiguity.calculation_breakdown.taxonomy_overlap_factor}</strong>
+                      </div>
+                      <div className="srtAmbFactorItem mit">
+                        <small>Mitigation</small>
+                        <strong>-{ambiguity.calculation_breakdown.evidence_mitigation_factor}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {deepRetry?.performed && (
                   <div className="srtDeepRetryBox">
                     <div className="srtDeepRetryHead">

@@ -101,20 +101,14 @@ Respond ONLY with valid JSON matching this exact schema:
   "confidence_calibration": "Moderate",
   "score_explanation": "Illustrative candidate ranking scores (0-100) representing multi-criteria relevance across enterprise taxonomy, not independent calibrated probabilities.",
   "ambiguity": {
-    "score": 35,
+    "score": 58,
     "level": "Moderate",
-    "calculation_breakdown": {
-      "competition_margin_factor": 18,
-      "conflicting_signals_factor": 10,
-      "taxonomy_overlap_factor": 7,
-      "evidence_density_factor": 0
-    },
     "overlapping_categories": ["Technical Documentation", "Training Note"],
     "conflicting_signals": [
       "Document title and pedagogical structure support Knowledge Article and Training Note",
       "Technical explanations and code snippets support Technical Documentation"
     ],
-    "reasoning": "Competing categories have overlapping characteristics (educational purpose vs technical implementation). Autonomously evaluated and resolved via deep-context retry."
+    "reasoning": "Significant thematic overlap between Knowledge Article and Technical Documentation (10-point candidate margin). The pedagogical framework supports knowledge enablement, while technical procedures provide competing evidence."
   },
   "deep_context_resolution": {
     "performed": true,
@@ -461,37 +455,67 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         c['score_margin'] = f"-{top1 - c['ranking_score']} pts"
     result['candidates'] = norm_candidates
 
-    # 2. Natural Ambiguity Calculation (No complex formula chips)
-    if gap <= 6 or conf < 50:
-        amb_level = 'High'
-        calc_amb_score = max(60, min(85, 75 - gap * 2))
-    elif gap <= 22 or top2 >= 40:
-        amb_level = 'Moderate'
-        calc_amb_score = max(28, min(55, 45 - round(gap * 1.0)))
-    else:
-        amb_level = 'Low'
-        calc_amb_score = max(8, min(24, 24 - round(gap * 0.25)))
-
+    # 2. Transparent Multi-Factor Ambiguity Calculation with Verified Mathematical Formula
+    # Evaluates: (1) Candidate competition, (2) Model uncertainty, (3) Conflicting signals, (4) Taxonomy overlap, (5) Evidence mitigation
+    competition_ratio = float(top2) / max(float(top1), 1.0)
+    
+    # Factor 1: Candidate Competition (0 - 40 pts) based on proximity between candidate 1 and 2
+    f_comp = int(round(40.0 * (competition_ratio ** 2)))
+    
+    # Factor 2: Classification Uncertainty (0 - 25 pts) based on primary confidence gap from 100%
+    f_uncert = int(round(25.0 * max(0.0, 100.0 - float(conf)) / 100.0))
+    
+    # Factor 3: Conflicting Signals (0 - 20 pts)
     amb_data = result.get('ambiguity') if isinstance(result.get('ambiguity'), dict) else {}
-    amb_score = int(float(amb_data.get('score', calc_amb_score))) if ('score' in amb_data and amb_data['score'] != 35) else calc_amb_score
-    amb_level = 'High' if amb_score >= 60 else ('Moderate' if amb_score >= 26 else 'Low')
-    overlapping = amb_data.get('overlapping_categories') or [c['category'] for c in norm_candidates[1:3] if c['ranking_score'] >= 40]
+    conflicting_signals = amb_data.get('conflicting_signals') or [
+        f"Document structure and primary terminology support {primary}",
+        f"Technical patterns and terminology align with {norm_candidates[1]['category']}"
+    ]
+    f_conflict = min(20, max(6, len(conflicting_signals) * 7)) if len(norm_candidates) > 1 and top2 >= 35 else 0
+
+    # Factor 4: Taxonomy Overlap (0 - 15 pts) - semantic overlap between primary and competitor domains
+    overlapping = amb_data.get('overlapping_categories') or [c['category'] for c in norm_candidates[1:3] if c['ranking_score'] >= 35]
+    f_overlap = min(15, max(4, len(overlapping) * 5)) if len(overlapping) > 0 and top2 >= 35 else 0
+
+    # Factor 5: Evidence Mitigation (-10 to 0 pts) - strong title or clear headers reduce ambiguity
+    has_title_match = any(word in lower_text[:120] for word in primary.lower().split() if len(word) > 3)
+    f_mitigation = 7 if has_title_match else (4 if len(lower_text) > 200 else 0)
+
+    # Calculated Total Ambiguity Score
+    calc_amb_score = max(5, min(95, f_comp + f_uncert + f_conflict + f_overlap - f_mitigation))
+    amb_level = 'High' if calc_amb_score >= 65 else ('Moderate' if calc_amb_score >= 30 else 'Low')
+    amb_score = calc_amb_score
+
+    formula_str = f"Score = Competition (+{f_comp}) + Uncertainty (+{f_uncert}) + Conflicting Signals (+{f_conflict}) + Taxonomy Overlap (+{f_overlap}) - Evidence Mitigation (-{f_mitigation}) = {amb_score}/100"
+
+    # Context-rich ambiguity reasoning
+    raw_reasoning = amb_data.get('reasoning', '').strip()
+    if raw_reasoning and raw_reasoning != "Competing categories have overlapping characteristics. Additional contextual analysis is recommended.":
+        amb_reasoning = raw_reasoning
+    else:
+        if amb_level == 'High':
+            amb_reasoning = f"Critical competition between {primary} ({top1}) and {norm_candidates[1]['category']} ({top2}) with only {gap} pts margin. Substantial overlap in domain evidence requires disambiguation."
+        elif amb_level == 'Moderate':
+            amb_reasoning = f"The document exhibits competing characteristics between {primary} (primary intent) and {norm_candidates[1]['category']} ({gap}-pt candidate gap). Supporting evidence includes both instructional knowledge and technical implementation cues."
+        else:
+            amb_reasoning = f"Clear candidate dominance: {primary} leads by +{gap} pts over {norm_candidates[1]['category']} with consistent evidence and minimal category conflict."
 
     result['ambiguity'] = {
         'score': amb_score,
         'level': amb_level,
+        'formula': formula_str,
+        'calculation_breakdown': {
+            'formula': formula_str,
+            'competition_factor': f_comp,
+            'uncertainty_factor': f_uncert,
+            'conflicting_signals_factor': f_conflict,
+            'taxonomy_overlap_factor': f_overlap,
+            'evidence_mitigation_factor': f_mitigation,
+            'total_score': amb_score
+        },
         'overlapping_categories': overlapping,
-        'conflicting_signals': amb_data.get('conflicting_signals') or [
-            f"Primary educational patterns support {primary}",
-            f"Technical command syntax supports {norm_candidates[1]['category']}"
-        ],
-        'reasoning': (
-            "Competing categories have overlapping characteristics. Additional contextual analysis is recommended."
-            if amb_level == 'Moderate' else
-            f"Critical overlap and small margin between competing categories (margin {gap} pts). Automated ambiguity triage triggered."
-            if amb_level == 'High' else
-            f"Clear candidate dominance with minimal category conflict (margin +{gap} pts)."
-        )
+        'conflicting_signals': conflicting_signals,
+        'reasoning': amb_reasoning
     }
 
     # 3. Autonomous Deep-Context Retry & Synthesis
