@@ -106,13 +106,14 @@ def lambda_handler(event, context):
     if method == 'OPTIONS':
         return {'statusCode': 204, 'headers': CORS_HEADERS, 'body': ''}
 
-    # Health check
-    if raw_path in ('/api/health', '/health'):
+    # Health check & root landing
+    if raw_path in ('/api/health', '/health', '/', ''):
         return _json_response(200, {
             'status': 'ok',
             'agent': 'SORTIA',
             'eyebrow': 'CONTENT CLASSIFIER',
             'service': 'Enterprise Content Classifier & Ambiguity Routing Engine',
+            'frontend': 'http://localhost:5181',
         })
 
     # Document view / download

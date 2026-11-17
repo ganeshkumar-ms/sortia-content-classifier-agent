@@ -85,8 +85,8 @@ button, input, textarea {
   position: fixed;
   inset: -35%;
   pointer-events: none;
-  background: radial-gradient(circle at 24% 25%, #7b2cff44, transparent 23%),
-              radial-gradient(circle at 78% 70%, #2d0b5635, transparent 25%);
+  background: radial-gradient(circle at 24% 25%, rgba(7, 140, 255, 0.14), transparent 45%),
+              radial-gradient(circle at 78% 70%, rgba(56, 189, 248, 0.10), transparent 50%);
   filter: none;
   animation: drift 14s ease-in-out infinite alternate;
 }
@@ -135,7 +135,7 @@ header {
   font-size: 21px;
   font-weight: 800;
   letter-spacing: 7px;
-  background: linear-gradient(95deg, #ffffff, #b98eff, var(--a1), #b98eff);
+  background: linear-gradient(95deg, #ffffff, #38bdf8, var(--a1), #38bdf8);
   background-size: 240% 240%;
   animation: flow 8s ease infinite;
   -webkit-background-clip: text;
@@ -148,7 +148,7 @@ header {
   justify-content: center;
   border: 1px solid var(--line);
   background: rgba(7, 140, 255, 0.08);
-  color: #e6d8ff;
+  color: #f0f7ff;
   border-radius: 999px;
   padding: 8px 15px;
   font-size: 11px;
@@ -199,7 +199,7 @@ header {
 }
 
 .home h1 span {
-  background: linear-gradient(95deg, #ffffff, #b98eff, var(--a1), #b98eff);
+  background: linear-gradient(95deg, #ffffff, #38bdf8, var(--a1), #38bdf8);
   background-size: 240% 240%;
   animation: flow 8s ease infinite;
   -webkit-background-clip: text;
@@ -227,7 +227,7 @@ header {
   position: absolute;
   inset: -2px;
   border-radius: 25px;
-  background: conic-gradient(from var(--angle), transparent 40%, var(--a1), transparent 55%, #b98eff, transparent 70%);
+  background: conic-gradient(from var(--angle), transparent 40%, var(--a1), transparent 55%, #38bdf8, transparent 70%);
   filter: blur(10px);
   opacity: 0.36;
   animation: angleSpin 9s linear infinite;
@@ -258,7 +258,7 @@ header {
 }
 
 .prompt input::placeholder, .composer input::placeholder {
-  color: rgba(179, 157, 219, 0.65);
+  color: rgba(132, 155, 180, 0.65);
 }
 
 .startAttach, .plus {
@@ -290,7 +290,7 @@ header {
   border: 0;
   border-radius: 14px;
   color: #ffffff;
-  background: linear-gradient(135deg, #078cff, #6c20eb);
+  background: linear-gradient(135deg, #078cff, #38bdf8);
   cursor: pointer;
   transition: 0.2s;
   display: grid;
@@ -362,21 +362,21 @@ header {
 .card {
   min-height: auto;
   text-align: left;
-  padding: 14px 16px;
-  border: 1px solid rgba(7, 140, 255, 0.24);
-  border-radius: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(7, 140, 255, 0.18);
+  border-radius: 12px;
   color: var(--text);
   background: var(--panel);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.25s ease;
 }
 
 .card:hover {
   transform: translateY(-3px);
-  border-color: rgba(185, 142, 255, 0.55);
+  border-color: rgba(7, 140, 255, 0.55);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
@@ -406,10 +406,10 @@ header {
   overflow: hidden;
 }
 
-/* Compact Centered Empty Card */
+/* Full Width Empty Card */
 .card.emptyCard {
   grid-column: 1 / -1;
-  max-width: 360px;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
   padding: 12px 18px;
@@ -417,8 +417,8 @@ header {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: rgba(24, 10, 41, 0.72);
-  border: 1px dashed rgba(185, 142, 255, 0.35);
+  background: rgba(5, 26, 44, 0.5);
+  border: 1px dashed rgba(7, 140, 255, 0.25);
   gap: 3px;
   cursor: default;
 }
@@ -459,7 +459,7 @@ header {
 /* Deep Obsidian-Plum Sidebar matching #020c16 workspace */
 .side {
   border-right: 1px solid rgba(7, 140, 255, 0.20);
-  background: rgba(11, 3, 19, 0.94);
+  background: rgba(5, 26, 44, 0.94);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   padding: 20px 14px;
@@ -498,7 +498,7 @@ header {
 
 .new:hover {
   background: rgba(7, 140, 255, 0.28);
-  border-color: #b98eff;
+  border-color: #38bdf8;
   color: #ffffff;
 }
 
@@ -553,7 +553,7 @@ header {
 
 .histRow.on {
   background: rgba(7, 140, 255, 0.20);
-  box-shadow: inset 0 0 0 1px rgba(185, 142, 255, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(7, 140, 255, 0.34);
 }
 
 .histRow .hist {
@@ -579,7 +579,7 @@ header {
 .histRow:hover .hist,
 .histRow:focus-within .hist {
   padding: 0 76px 0 12px;
-  color: #f7f7fb;
+  color: #f0f7ff;
 }
 
 .histRow.on .hist {
@@ -598,10 +598,10 @@ header {
   gap: 4px;
   padding: 3px;
   border-radius: 9px;
-  background: rgba(11, 3, 19, 0.90);
+  background: rgba(5, 26, 44, 0.90);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(185, 142, 255, 0.42);
+  border: 1px solid rgba(7, 140, 255, 0.42);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
   opacity: 0;
   pointer-events: none;
@@ -639,13 +639,13 @@ header {
 .histIcon.edit {
   color: #38bdf8;
   background: rgba(7, 140, 255, 0.24);
-  border: 1px solid rgba(185, 142, 255, 0.48);
+  border: 1px solid rgba(7, 140, 255, 0.48);
 }
 
 .histIcon.edit:hover {
   color: #ffffff;
   background: rgba(7, 140, 255, 0.45);
-  border-color: #b98eff;
+  border-color: #38bdf8;
   transform: scale(1.04);
 }
 
@@ -703,9 +703,9 @@ header {
   width: 100%;
   margin: 0;
   padding: 6px 10px;
-  border: 1px solid rgba(185, 142, 255, 0.55);
+  border: 1px solid rgba(7, 140, 255, 0.55);
   border-radius: 8px;
-  background: #130722;
+  background: #051a2c;
   color: #ffffff;
   font-size: 14px;
   outline: 0;
@@ -831,8 +831,8 @@ header {
   padding: 8px 10px;
   margin-bottom: 8px;
   border-radius: 10px;
-  background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(185, 142, 255, 0.28);
+  background: rgba(5, 26, 44, 0.55);
+  border: 1px solid rgba(7, 140, 255, 0.28);
 }
 
 .userFileMeta {
@@ -857,8 +857,8 @@ header {
 
 .userFileViewBtn {
   background: rgba(7, 140, 255, 0.22);
-  border: 1px solid rgba(185, 142, 255, 0.5);
-  color: #e9dcff;
+  border: 1px solid rgba(7, 140, 255, 0.5);
+  color: #f0f7ff;
   border-radius: 8px;
   padding: 5px 11px;
   font-size: 12px;
@@ -890,7 +890,7 @@ header {
   font-weight: 800;
   letter-spacing: 3px;
   font-size: 12px;
-  background: linear-gradient(90deg, #ffffff, #b98eff, #078cff, #b98eff);
+  background: linear-gradient(90deg, #ffffff, #38bdf8, #078cff, #38bdf8);
   background-size: 240% 240%;
   animation: flow 6s ease infinite;
   -webkit-background-clip: text;
@@ -938,7 +938,7 @@ header {
 }
 
 .composer:focus-within {
-  border-color: rgba(185, 142, 255, 0.58);
+  border-color: rgba(7, 140, 255, 0.58);
 }
 
 .composer form {
@@ -959,7 +959,7 @@ header {
 .plainChatBubble {
   font-size: 15px;
   line-height: 1.65;
-  color: #f7f7fb;
+  color: #f0f7ff;
   white-space: pre-wrap;
 }
 
@@ -1002,9 +1002,9 @@ header {
 }
 
 .statusPill.caution {
-  background: rgba(245, 158, 11, 0.18);
-  border: 1px solid rgba(245, 158, 11, 0.48);
-  color: #fcd34d;
+  background: rgba(250, 204, 21, 0.18);
+  border: 1px solid rgba(250, 204, 21, 0.48);
+  color: #facc15;
 }
 
 .statusPill .dot {
@@ -1020,8 +1020,8 @@ header {
   font-size: 12.5px;
   font-weight: 700;
   background: rgba(7, 140, 255, 0.26);
-  border: 1px solid rgba(185, 142, 255, 0.5);
-  color: #f2e8ff;
+  border: 1px solid rgba(7, 140, 255, 0.5);
+  color: #f0f7ff;
 }
 
 .subtypeBadge, .domainBadge {
@@ -1029,9 +1029,9 @@ header {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(11, 3, 19, 0.55);
-  border: 1px solid rgba(185, 142, 255, 0.25);
-  color: #cbb5f8;
+  background: rgba(5, 26, 44, 0.55);
+  border: 1px solid rgba(7, 140, 255, 0.25);
+  color: #849bb4;
 }
 
 .classificationTitle {
@@ -1043,9 +1043,9 @@ header {
 .ambiguityBanner {
   padding: 11px 14px;
   border-radius: 10px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.42);
-  color: #fde68a;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  color: #facc15;
 }
 
 .ambiguityBanner strong {
@@ -1058,11 +1058,11 @@ header {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: #fef3c7;
+  color: #facc15;
 }
 
 .whatTypeBox {
-  background: rgba(11, 3, 19, 0.62);
+  background: rgba(5, 26, 44, 0.62);
   border-left: 3px solid #38bdf8;
   border-radius: 0 12px 12px 0;
   padding: 12px 15px;
@@ -1081,7 +1081,7 @@ header {
   margin: 0;
   font-size: 14.5px;
   line-height: 1.6;
-  color: #efe7ff;
+  color: #f0f7ff;
 }
 
 /* Compact Horizontal Metrics Strip */
@@ -1092,7 +1092,7 @@ header {
   gap: 12px;
   padding: 9px 14px;
   border-radius: 10px;
-  background: rgba(11, 3, 19, 0.55);
+  background: rgba(5, 26, 44, 0.55);
   border: 1px solid rgba(7, 140, 255, 0.22);
   min-height: 38px;
 }
@@ -1107,7 +1107,7 @@ header {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #b98eff;
+  background: #38bdf8;
 }
 
 .mVal {
@@ -1125,7 +1125,7 @@ header {
 .mSep {
   width: 1px;
   height: 14px;
-  background: rgba(185, 142, 255, 0.22);
+  background: rgba(7, 140, 255, 0.22);
 }
 
 /* Tabs & Candidate Bars */
@@ -1138,9 +1138,9 @@ header {
 .tabPill {
   padding: 7px 13px;
   border-radius: 999px;
-  border: 1px solid rgba(185, 142, 255, 0.24);
-  background: rgba(11, 3, 19, 0.45);
-  color: #c5b1ee;
+  border: 1px solid rgba(7, 140, 255, 0.24);
+  background: rgba(5, 26, 44, 0.45);
+  color: #849bb4;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -1149,7 +1149,7 @@ header {
 
 .tabPill.active, .tabPill:hover {
   background: rgba(7, 140, 255, 0.24);
-  border-color: rgba(185, 142, 255, 0.65);
+  border-color: rgba(7, 140, 255, 0.65);
   color: #ffffff;
 }
 
@@ -1162,7 +1162,7 @@ header {
 .candidateCard {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(11, 3, 19, 0.55);
+  background: rgba(5, 26, 44, 0.55);
   border: 1px solid rgba(7, 140, 255, 0.22);
   display: flex;
   flex-direction: column;
@@ -1170,8 +1170,8 @@ header {
 }
 
 .candidateCard.top {
-  border-color: rgba(185, 142, 255, 0.52);
-  background: rgba(28, 12, 48, 0.72);
+  border-color: rgba(7, 140, 255, 0.52);
+  background: rgba(5, 26, 44, 0.72);
 }
 
 .barTop {
@@ -1213,20 +1213,20 @@ header {
   width: 100%;
   height: 7px;
   border-radius: 999px;
-  background: rgba(185, 142, 255, 0.14);
+  background: rgba(7, 140, 255, 0.14);
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #6c20eb, #b98eff);
+  background: linear-gradient(90deg, #078cff, #38bdf8);
   transition: width 0.5s ease;
 }
 
 .barDetail {
   font-size: 13px;
-  color: #d2c5ed;
+  color: #849bb4;
   line-height: 1.5;
 }
 
@@ -1240,7 +1240,7 @@ header {
 .signalItem {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(11, 3, 19, 0.55);
+  background: rgba(5, 26, 44, 0.55);
   border: 1px solid rgba(7, 140, 255, 0.22);
 }
 
@@ -1274,7 +1274,7 @@ header {
 .weightTag.medium {
   background: rgba(7, 140, 255, 0.22);
   color: #38bdf8;
-  border: 1px solid rgba(185, 142, 255, 0.45);
+  border: 1px solid rgba(7, 140, 255, 0.45);
 }
 
 .weightTag.low {
@@ -1286,7 +1286,7 @@ header {
 .signalEvidence {
   font-size: 13px;
   font-family: var(--font-mono);
-  color: #e6d8ff;
+  color: #f0f7ff;
   line-height: 1.5;
 }
 
@@ -1303,7 +1303,7 @@ header {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(11, 3, 19, 0.55);
+  background: rgba(5, 26, 44, 0.55);
   border: 1px solid rgba(7, 140, 255, 0.22);
 }
 
@@ -1322,7 +1322,7 @@ header {
 
 .routingVal {
   font-size: 13.5px;
-  color: #f4eeff;
+  color: #f0f7ff;
   line-height: 1.5;
 }
 
@@ -1350,7 +1350,7 @@ header {
 
 .followChip {
   background: rgba(7, 140, 255, 0.16);
-  border: 1px solid rgba(185, 142, 255, 0.36);
+  border: 1px solid rgba(7, 140, 255, 0.36);
   color: #f0f7ff;
   border-radius: 999px;
   padding: 6px 12px;
@@ -1387,7 +1387,7 @@ header {
 /* Side-by-side Document Viewer */
 .docViewer {
   border-left: 1px solid rgba(7, 140, 255, 0.22);
-  background: rgba(11, 3, 19, 0.96);
+  background: rgba(5, 26, 44, 0.96);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1436,7 +1436,7 @@ header {
   border-radius: 8px;
   border: 1px solid var(--line);
   background: rgba(7, 140, 255, 0.12);
-  color: #e6d8ff;
+  color: #f0f7ff;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -1496,7 +1496,7 @@ header {
 .docViewerText {
   font-family: var(--font-mono);
   font-size: 12.5px;
-  color: #e6d8ff;
+  color: #f0f7ff;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
@@ -1555,7 +1555,7 @@ header {
     inset: 0;
     z-index: 80;
     width: 100%;
-    background: rgba(11, 3, 19, 0.98);
+    background: rgba(5, 26, 44, 0.98);
   }
   .drawerClose {
     display: grid;
@@ -1568,7 +1568,7 @@ header {
     border-radius: 10px;
     border: 1px solid var(--line);
     background: rgba(7, 140, 255, 0.14);
-    color: #e6d8ff;
+    color: #f0f7ff;
     cursor: pointer;
   }
   .mobileMenu {
@@ -1579,7 +1579,7 @@ header {
     border-radius: 999px;
     border: 1px solid var(--line);
     background: rgba(7, 140, 255, 0.14);
-    color: #e6d8ff;
+    color: #f0f7ff;
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
@@ -1927,4 +1927,102 @@ html, body {
     font-size: 11px !important;
     padding: 7px 10px !important;
   }
+}
+
+
+/* ============================================================
+   STRUCTURED FILE REJECTION CARD
+   ============================================================ */
+.sortiaRejectionCard {
+  background: rgba(5, 26, 44, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sortiaRejectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+}
+
+.sortiaRejectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.sortiaRejectionFile {
+  font-size: 12px;
+  color: #cbd5e1;
+  background: rgba(7, 140, 255, 0.08);
+  border: 1px solid rgba(7, 140, 255, 0.22);
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.sortiaRejectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sortiaRejectionCard .rejectionSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sortiaRejectionCard .rejectionLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.sortiaRejectionCard .rejectionValue {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #e2e8f0;
+}
+
+.sortiaRejectionCard .rejectionValue.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sortiaRejectionCard .rejectionSection.fixSection {
+  background: rgba(7, 140, 255, 0.08);
+  border: 1px solid rgba(7, 140, 255, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
 }
