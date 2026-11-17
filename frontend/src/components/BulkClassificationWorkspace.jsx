@@ -10,7 +10,7 @@ function formatBytes(bytes) {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-export default function BulkClassificationWorkspace({ onSelectDocForViewer }) {
+export default function BulkClassificationWorkspace({ onSelectDocForViewer, onClose }) {
   const [filesToUpload, setFilesToUpload] = useState([])
   const [batchName, setBatchName] = useState('')
   const [currentBatch, setCurrentBatch] = useState(null)
@@ -134,6 +134,23 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer }) {
 
   return (
     <div className="srtBulkWorkspace">
+      {onClose && (
+        <div className="srtBulkTopBar">
+          <div className="srtBulkTopTitle">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#38bdf8" strokeWidth="2.2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            <div>
+              <strong style={{ fontSize: '15px', color: '#f8fafc', display: 'block' }}>BULK FILE CLASSIFICATION WORKSPACE</strong>
+              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Parallel batch processing, directory ingestion &amp; automated routing</div>
+            </div>
+          </div>
+          <button type="button" className="srtBulkCloseBtn" onClick={onClose}>
+            ✕ Close
+          </button>
+        </div>
+      )}
+
       {/* 1. UPLOAD STAGE */}
       {!currentBatch && (
         <div className="srtBulkUploadCard">

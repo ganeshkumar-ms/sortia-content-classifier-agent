@@ -3989,3 +3989,79 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* =====================================================================
+   BULK CLASSIFIER PIN BUTTON & MODAL
+   ===================================================================== */
+.bulkPinBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(7, 140, 255, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  border-radius: 8px;
+  color: #38bdf8;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+.bulkPinBtn:hover {
+  background: #078cff;
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(7, 140, 255, 0.45);
+}
+
+.bulkModalCard {
+  max-width: 1150px;
+  width: 95vw;
+  max-height: 92vh;
+  padding: 24px;
+  background: #020e1a;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+  overflow-y: auto;
+}
+
+.srtBulkTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.srtBulkTopTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.srtBulkCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srtBulkCloseBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
