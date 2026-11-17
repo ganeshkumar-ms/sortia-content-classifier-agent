@@ -3182,6 +3182,10 @@ html, body {
   color: #34d399;
 }
 
+.srtAmbInlineTop strong.cyan {
+  color: #38bdf8;
+}
+
 .srtAmbInlineTop strong.amber {
   color: #fcd34d;
 }

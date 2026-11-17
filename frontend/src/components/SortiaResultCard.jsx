@@ -363,27 +363,13 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
               <div className="srtAmbiguityInline">
                 <div className="srtAmbInlineTop">
                   <span>AMBIGUITY ANALYSIS:</span>
-                  <strong className={ambLevel.toLowerCase() === 'high' ? 'amber' : 'green'}>
+                  <strong className={ambLevel.toLowerCase() === 'high' ? 'amber' : (ambLevel.toLowerCase() === 'moderate' ? 'cyan' : 'green')}>
                     {ambLevel.toUpperCase()} ({ambScore}/100)
                   </strong>
                 </div>
 
-                {ambiguity?.calculation_breakdown && (
-                  <div className="srtAmbBreakdownGrid">
-                    <span className="srtAmbFactorChip">
-                      Margin Factor: <strong>+{ambiguity.calculation_breakdown.competition_margin_factor ?? 0} pts</strong>
-                    </span>
-                    <span className="srtAmbFactorChip">
-                      Signal Conflict: <strong>+{ambiguity.calculation_breakdown.conflicting_signals_factor ?? 0} pts</strong>
-                    </span>
-                    <span className="srtAmbFactorChip">
-                      Taxonomy Overlap: <strong>+{ambiguity.calculation_breakdown.taxonomy_overlap_factor ?? 0} pts</strong>
-                    </span>
-                  </div>
-                )}
-
                 <p className="srtAmbInlineText">
-                  {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics (educational purpose vs technical implementation). Autonomously evaluated and resolved via deep-context retry.')}
+                  {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics. Autonomously evaluated and resolved via deep-context analysis.')}
                 </p>
 
                 {deepRetry?.performed && (
