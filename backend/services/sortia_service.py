@@ -464,10 +464,10 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     # 2. Natural Ambiguity Calculation (No complex formula chips)
     if gap <= 6 or conf < 50:
         amb_level = 'High'
-        calc_amb_score = max(60, min(85, 76 - gap * 2))
+        calc_amb_score = max(60, min(85, 75 - gap * 2))
     elif gap <= 22 or top2 >= 40:
         amb_level = 'Moderate'
-        calc_amb_score = max(28, min(55, 48 - round(gap * 0.9)))
+        calc_amb_score = max(28, min(55, 45 - round(gap * 1.0)))
     else:
         amb_level = 'Low'
         calc_amb_score = max(8, min(24, 24 - round(gap * 0.25)))
@@ -482,11 +482,11 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         'level': amb_level,
         'overlapping_categories': overlapping,
         'conflicting_signals': amb_data.get('conflicting_signals') or [
-            f"Primary structural patterns support {primary}",
-            f"Secondary characteristics support {norm_candidates[1]['category']}"
+            f"Primary educational patterns support {primary}",
+            f"Technical command syntax supports {norm_candidates[1]['category']}"
         ],
         'reasoning': (
-            f"Competing categories have overlapping characteristics (margin {gap} pts). Autonomously evaluated and resolved via deep-context analysis."
+            "Competing categories have overlapping characteristics. Additional contextual analysis is recommended."
             if amb_level == 'Moderate' else
             f"Critical overlap and small margin between competing categories (margin {gap} pts). Automated ambiguity triage triggered."
             if amb_level == 'High' else

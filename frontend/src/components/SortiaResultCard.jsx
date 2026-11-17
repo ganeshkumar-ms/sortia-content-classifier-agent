@@ -364,12 +364,12 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
                 <div className="srtAmbInlineTop">
                   <span>AMBIGUITY ANALYSIS:</span>
                   <strong className={ambLevel.toLowerCase() === 'high' ? 'amber' : (ambLevel.toLowerCase() === 'moderate' ? 'cyan' : 'green')}>
-                    {ambLevel.toUpperCase()} ({ambScore}/100)
+                    {ambScore}/100 · {ambLevel}
                   </strong>
                 </div>
 
                 <p className="srtAmbInlineText">
-                  {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics. Autonomously evaluated and resolved via deep-context analysis.')}
+                  {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics. Additional contextual analysis is recommended.')}
                 </p>
 
                 {deepRetry?.performed && (
