@@ -261,7 +261,7 @@ header {
   color: rgba(132, 155, 180, 0.65);
 }
 
-.startAttach, .plus {
+.startAttach, .plus, .bulkPinBtn {
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
@@ -275,7 +275,7 @@ header {
   transition: 0.25s;
 }
 
-.startAttach:hover, .plus:hover {
+.startAttach:hover, .plus:hover, .bulkPinBtn:hover {
   color: #fff !important;
   border-color: #078cff !important;
   background: rgba(7, 140, 255, 0.18) !important;
@@ -3993,29 +3993,7 @@ html, body {
 /* =====================================================================
    BULK CLASSIFIER PIN BUTTON & MODAL
    ===================================================================== */
-.bulkPinBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: rgba(7, 140, 255, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.38);
-  border-radius: 8px;
-  color: #38bdf8;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  flex-shrink: 0;
-  margin: 0 4px;
-}
 
-.bulkPinBtn:hover {
-  background: #078cff;
-  color: #ffffff;
-  border-color: #38bdf8;
-  box-shadow: 0 0 12px rgba(7, 140, 255, 0.45);
-}
 
 .bulkModalCard {
   max-width: 1150px;
