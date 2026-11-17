@@ -33,3 +33,74 @@ export async function classifyContent({ file, text, conversationHistory = [] }) 
   return data
 }
 
+export async function createBatch({ files = [], batchName = '' }) {
+  const formData = new FormData()
+  for (const f of files) {
+    formData.append('files', f)
+  }
+  if (batchName) {
+    formData.append('batch_name', batchName)
+  }
+
+  const res = await fetch(`${API_BASE}/api/batch/create`, {
+    method: 'POST',
+    body: formData
+  })
+  const textResp = await res.text()
+  let data
+  try {
+    data = JSON.parse(textResp)
+  } catch (e) {
+    throw new Error(`Invalid server response (${res.status}): ${textResp.slice(0, 150)}`)
+  }
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || `Failed to create batch (${res.status})`)
+  }
+  return data
+}
+
+export async function getBatch(batchId) {
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}`)
+  if (!res.ok) throw new Error(`Batch not found (${res.status})`)
+  return res.json()
+}
+
+export async function retryBatch(batchId) {
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}/retry`, {
+    method: 'POST'
+  })
+  if (!res.ok) throw new Error(`Failed to retry batch (${res.status})`)
+  return res.json()
+}
+
+export function getBatchExportUrl(batchId) {
+  return `${API_BASE}/api/batch/${encodeURIComponent(batchId)}/export`
+}
+
+export async function getOverview() {
+  const res = await fetch(`${API_BASE}/api/overview`)
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function getResults({ q = '', category = '', status = '' } = {}) {
+  const p = new URLSearchParams()
+  if (q) p.append('q', q)
+  if (category) p.append('category', category)
+  if (status) p.append('status', status)
+  const res = await fetch(`${API_BASE}/api/results?${p.toString()}`)
+  if (!res.ok) return { results: [], total: 0 }
+  return res.json()
+}
+
+export async function getExceptions() {
+  const res = await fetch(`${API_BASE}/api/exceptions`)
+  if (!res.ok) return { exceptions: [], total: 0 }
+  return res.json()
+}
+
+export async function getBatches() {
+  const res = await fetch(`${API_BASE}/api/batches`)
+  if (!res.ok) return { batches: [], total: 0 }
+  return res.json()
+}

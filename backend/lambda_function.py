@@ -11,7 +11,7 @@ from urllib.parse import quote, unquote
 
 import boto3
 from botocore.config import Config
-from services import sortia_service, document_service, file_validation, viewer_service
+from services import sortia_service, document_service, file_validation, viewer_service, batch_service
 
 TMP_UPLOADS = Path(tempfile.gettempdir()) / 'uploads'
 TMP_UPLOADS.mkdir(parents=True, exist_ok=True)
@@ -45,6 +45,7 @@ def _parse_multipart(body_bytes: bytes, content_type: str) -> dict:
     msg = BytesParser(policy=default_email_policy).parsebytes(raw_msg)
     fields = {}
     file_info = None
+    files_list = []
     if msg.is_multipart():
         for part in msg.iter_parts():
             cd = part.get('Content-Disposition', '')
@@ -54,10 +55,13 @@ def _parse_multipart(body_bytes: bytes, content_type: str) -> dict:
             filename = part.get_filename()
             payload = part.get_payload(decode=True) or b''
             if filename:
-                file_info = {'filename': filename, 'bytes': payload}
+                f_item = {'filename': filename, 'bytes': payload}
+                files_list.append(f_item)
+                if not file_info:
+                    file_info = f_item
             elif name:
                 fields[name] = payload.decode('utf-8', errors='replace')
-    return {'fields': fields, 'file': file_info}
+    return {'fields': fields, 'file': file_info, 'files': files_list}
 
 
 def _display_name(stored: str) -> str:
@@ -173,6 +177,82 @@ def lambda_handler(event, context):
             'isBase64Encoded': True,
             'body': base64.b64encode(file_path.read_bytes()).decode('ascii'),
         }
+
+    # Platform Overview
+    if raw_path in ('/api/overview', '/api/analytics/overview') and method == 'GET':
+        overview = batch_service.get_platform_overview()
+        return _json_response(200, overview)
+
+    # Classification Results (flat searchable list across all runs)
+    if raw_path in ('/api/results', '/api/documents') and method == 'GET':
+        params = event.get('queryStringParameters') or {}
+        q = params.get('q', '')
+        cat = params.get('category', '')
+        st = params.get('status', '')
+        results = batch_service.get_all_results_flat(query=q, category=cat, status=st)
+        return _json_response(200, {'results': results, 'total': len(results)})
+
+    # Routing Exceptions queue
+    if raw_path in ('/api/exceptions', '/api/routing/exceptions') and method == 'GET':
+        exceptions = batch_service.get_all_results_flat(status='EXCEPTION_QUEUE')
+        return _json_response(200, {'exceptions': exceptions, 'total': len(exceptions)})
+
+    # Batches list
+    if raw_path in ('/api/batches', '/api/batch/list') and method == 'GET':
+        batches = batch_service.list_batches()
+        return _json_response(200, {'batches': batches, 'total': len(batches)})
+
+    # Batch Create (Bulk File Upload & Asynchronous Processing)
+    if raw_path in ('/api/batch/create', '/api/batch', '/api/batch/upload') and method == 'POST':
+        headers = {k.lower(): v for k, v in (event.get('headers') or {}).items()}
+        ct = headers.get('content-type', '')
+        body_raw = event.get('body') or ''
+        body_bytes = base64.b64decode(body_raw) if event.get('isBase64Encoded') else body_raw.encode('latin-1')
+
+        parsed = _parse_multipart(body_bytes, ct) if 'multipart/form-data' in ct else {'fields': {}, 'files': []}
+        files_list = parsed.get('files') or []
+        if not files_list and parsed.get('file'):
+            files_list = [parsed['file']]
+
+        batch_name = parsed.get('fields', {}).get('batch_name')
+        if not files_list:
+            return _json_response(400, {'detail': 'No files uploaded for batch classification.'})
+
+        res = batch_service.create_batch(files_list, batch_name=batch_name)
+        return _json_response(200, res)
+
+    # Batch Export CSV
+    if raw_path.startswith('/api/batch/') and raw_path.endswith('/export') and method == 'GET':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        csv_text = batch_service.export_batch_csv(batch_id)
+        return {
+            'statusCode': 200,
+            'headers': {
+                **CORS_HEADERS,
+                'Content-Type': 'text/csv; charset=utf-8',
+                'Content-Disposition': f'attachment; filename="{batch_id}_export.csv"',
+            },
+            'body': csv_text,
+        }
+
+    # Batch Retry
+    if raw_path.startswith('/api/batch/') and raw_path.endswith('/retry') and method == 'POST':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        res = batch_service.retry_batch_failed(batch_id)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
+
+    # Batch Details / Poll
+    if raw_path.startswith('/api/batch/') and method == 'GET':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        res = batch_service.get_batch(batch_id)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
 
     # Content classification / chat endpoint
     if raw_path in ('/api/classify', '/api/sortia/classify', '/api/analyze', '/api/message') and method == 'POST':
