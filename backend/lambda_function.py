@@ -221,6 +221,23 @@ def lambda_handler(event, context):
         res = batch_service.create_batch(files_list, batch_name=batch_name)
         return _json_response(200, res)
 
+    # Batch Create From Local Folder / File Path Location
+    if raw_path in ('/api/batch/create-from-path', '/api/batch/scan-path') and method == 'POST':
+        body_raw = event.get('body') or '{}'
+        try:
+            data = json.loads(body_raw) if isinstance(body_raw, str) else {}
+        except Exception:
+            data = {}
+        folder_path = data.get('path') or data.get('folder_path') or ''
+        batch_name = data.get('batch_name')
+        try:
+            res = batch_service.create_batch_from_path(folder_path, batch_name=batch_name)
+            return _json_response(200, res)
+        except (ValueError, FileNotFoundError, IOError) as e:
+            return _json_response(400, {'detail': str(e)})
+        except Exception as e:
+            return _json_response(500, {'detail': f'Failed to process path location: {e}'})
+
     # Batch Export CSV
     if raw_path.startswith('/api/batch/') and raw_path.endswith('/export') and method == 'GET':
         parts = raw_path.split('/')

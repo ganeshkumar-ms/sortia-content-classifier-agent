@@ -53,6 +53,47 @@ def _load_batch(batch_id: str) -> dict:
         return None
 
 
+def create_batch_from_path(folder_path: str, batch_name: str = None) -> dict:
+    """Scans a local directory path or file location and creates a batch job."""
+    if not folder_path or not folder_path.strip():
+        raise ValueError("Please provide a valid file or folder path.")
+    p = Path(folder_path.strip().strip('"').strip("'"))
+    if not p.exists():
+        raise FileNotFoundError(f"Location does not exist on disk: {folder_path}")
+
+    allowed_exts = {'.pdf', '.docx', '.txt', '.xlsx', '.pptx', '.csv', '.json', '.xml', '.md', '.zip', '.png', '.jpg', '.jpeg'}
+    files_to_ingest = []
+
+    if p.is_file():
+        if p.suffix.lower() in allowed_exts:
+            try:
+                content = p.read_bytes()
+                files_to_ingest.append({'filename': p.name, 'bytes': content})
+            except Exception as e:
+                raise IOError(f"Could not read file {p.name}: {e}")
+        else:
+            raise ValueError(f"File extension {p.suffix} is not in supported formats.")
+    elif p.is_dir():
+        for item in p.rglob('*'):
+            if item.is_file() and not item.name.startswith('.') and item.suffix.lower() in allowed_exts:
+                try:
+                    if item.stat().st_size <= 25 * 1024 * 1024:
+                        content = item.read_bytes()
+                        files_to_ingest.append({'filename': item.name, 'bytes': content})
+                except Exception as e:
+                    print(f"[BatchService] Skipping unreadable file {item}: {e}")
+                if len(files_to_ingest) >= 200:
+                    break
+    else:
+        raise ValueError(f"Invalid path type: {folder_path}")
+
+    if not files_to_ingest:
+        raise ValueError(f"No supported document files found in {folder_path}.")
+
+    default_name = batch_name or f"Ingested from {p.name}"
+    return create_batch(files_to_ingest, default_name)
+
+
 def create_batch(files: list, batch_name: str = None) -> dict:
     """Creates a new batch job from uploaded files (including extracting any uploaded .zip files)."""
     now = datetime.datetime.now(datetime.timezone.utc)

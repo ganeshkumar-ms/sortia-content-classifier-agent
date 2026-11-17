@@ -59,6 +59,25 @@ export async function createBatch({ files = [], batchName = '' }) {
   return data
 }
 
+export async function createBatchFromPath({ folderPath = '', batchName = '' }) {
+  const res = await fetch(`${API_BASE}/api/batch/create-from-path`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: folderPath, batch_name: batchName })
+  })
+  const textResp = await res.text()
+  let data
+  try {
+    data = JSON.parse(textResp)
+  } catch (e) {
+    throw new Error(`Invalid server response (${res.status}): ${textResp.slice(0, 150)}`)
+  }
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || `Failed to scan folder location (${res.status})`)
+  }
+  return data
+}
+
 export async function getBatch(batchId) {
   const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}`)
   if (!res.ok) throw new Error(`Batch not found (${res.status})`)

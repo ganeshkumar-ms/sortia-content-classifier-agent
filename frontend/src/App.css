@@ -3997,17 +3997,15 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  width: 32px;
+  height: 32px;
   background: rgba(7, 140, 255, 0.16);
   border: 1px solid rgba(56, 189, 248, 0.38);
   border-radius: 8px;
   color: #38bdf8;
-  padding: 5px 10px;
-  font-size: 11.5px;
-  font-weight: 800;
+  padding: 0;
   cursor: pointer;
   transition: all 0.18s ease;
-  white-space: nowrap;
   flex-shrink: 0;
   margin: 0 4px;
 }
@@ -4030,13 +4028,15 @@ html, body {
   overflow-y: auto;
 }
 
+/* Modal Workspace Top Bar */
 .srtBulkTopBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.22);
 }
 
 .srtBulkTopTitle {
@@ -4045,23 +4045,996 @@ html, body {
   gap: 12px;
 }
 
+.srtBulkTopIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(7, 140, 255, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.srtBulkTopHeading {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #f8fafc;
+  display: block;
+}
+
+.srtBulkTopSub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
 .srtBulkCloseBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #f1f5f9;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.srtBulkCloseBtn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Ingestion Mode Switcher */
+.srtBulkTabGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.srtBulkTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(4, 20, 36, 0.65);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srtBulkTabBtn:hover {
+  color: #f1f5f9;
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.srtBulkTabBtn.active {
+  background: rgba(7, 140, 255, 0.25);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 14px rgba(7, 140, 255, 0.25);
+}
+
+/* Drag & Drop Zone */
+.srtDropZone {
+  border: 2px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 32px 24px;
+  background: rgba(3, 18, 32, 0.55);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.srtDropZone:hover,
+.srtDropZone.dragging {
+  border-color: #38bdf8;
+  background: rgba(7, 140, 255, 0.12);
+  box-shadow: 0 0 24px rgba(7, 140, 255, 0.22);
+}
+
+.srtDropIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(7, 140, 255, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+}
+
+.srtDropTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.srtDropTitle strong {
+  font-size: 15px;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.srtDropTitle span {
+  font-size: 12.5px;
+  color: #94a3b8;
+}
+
+.srtDropActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.srtBulkActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.srtBulkActionBtn.primary {
+  background: linear-gradient(135deg, #078cff, #0266cc);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(7, 140, 255, 0.3);
+}
+
+.srtBulkActionBtn.primary:hover {
+  background: #38bdf8;
+  color: #020c16;
+}
+
+.srtBulkActionBtn.secondary {
+  background: rgba(4, 20, 36, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #e2e8f0;
+}
+
+.srtBulkActionBtn.secondary:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  background: rgba(7, 140, 255, 0.14);
+}
+
+/* Direct File / Folder Location Input Card */
+.srtPathInputCard {
+  background: rgba(3, 18, 32, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.srtPathHeader strong {
+  font-size: 14px;
+  color: #f8fafc;
+  display: block;
+}
+
+.srtPathHeader p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 4px 0 0;
+}
+
+.srtPathInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.srtPathFieldWrap {
+  flex: 1;
+  min-width: 260px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.srtPathIcon {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+}
+
+.srtPathInput {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(2, 12, 22, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px 10px 38px;
+  font-size: 13px;
+  color: #f8fafc;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.srtPathInput:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.srtScanPathBtn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #078cff, #0266cc);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.srtScanPathBtn:hover:not(:disabled) {
+  background: #38bdf8;
+  color: #020c16;
+}
+
+.srtScanPathBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.srtPathSuggestions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.srtPathSuggestions button {
+  background: rgba(7, 140, 255, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+}
+
+.srtPathSuggestions button:hover {
+  background: #078cff;
+  color: #ffffff;
+}
+
+/* Staged Files Queue */
+.srtStagedFilesBox {
+  margin-top: 16px;
+  background: rgba(3, 18, 32, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.srtStagedHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.srtTextBtn {
+  background: transparent;
+  border: none;
+  color: #f87171;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.srtStagedList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.srtStagedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(2, 10, 18, 0.6);
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.srtStagedName {
+  color: #e2e8f0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.srtStagedSize {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.srtStagedDel {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.srtStagedDel:hover {
+  color: #ef4444;
+}
+
+.srtStartRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.srtBatchNameInput {
+  flex: 1;
+  background: rgba(2, 12, 22, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #f8fafc;
+  font-size: 12.5px;
+}
+
+.srtPrimaryBtn {
+  background: linear-gradient(135deg, #078cff, #0266cc);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.srtPrimaryBtn:hover:not(:disabled) {
+  background: #38bdf8;
+  color: #020c16;
+}
+
+.srtPrimaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Active Batch Dashboard & Results */
+.srtBulkActiveCard {
+  background: rgba(3, 18, 32, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.srtActiveBatchHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.srtBatchId {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 3px 8px;
+  border-radius: 5px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.srtBatchName {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.srtProgressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.srtProgressTrack {
+  height: 10px;
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.srtProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #078cff, #38bdf8);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.srtProgressStats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.srtBulkKpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.srtBulkKpiItem {
+  background: rgba(2, 10, 18, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.srtBulkKpiItem span {
+  font-size: 10.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.srtBulkKpiItem strong {
+  font-size: 22px;
+  color: #f8fafc;
+  font-family: ui-monospace, monospace;
+}
+
+.srtBulkKpiItem.cyan strong { color: #38bdf8; }
+.srtBulkKpiItem.green strong { color: #34d399; }
+.srtBulkKpiItem.amber strong { color: #fbbf24; }
+.srtBulkKpiItem.red strong { color: #f87171; }
+
+.srtCatDistWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.srtCatDistLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.srtCatChip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  border-radius: 7px;
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(7, 140, 255, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
   color: #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.srtCatChip strong {
+  color: #38bdf8;
+}
+
+.srtBatchToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.srtBatchActionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.srtExportCsvBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.srtBulkCloseBtn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
+.srtExportCsvBtn:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.srtRetryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srtRetryBtn:hover {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.srtBulkError {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
   color: #fca5a5;
+  font-size: 12.5px;
+}
+
+/* Active Batch Dashboard */
+.srtBatchDashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.srtBatchHeadBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: rgba(4, 20, 36, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 10px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+
+.srtBatchMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.srtBatchStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+.srtBatchStatusPill.processing {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.srtBatchStatusPill.completed {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.srtBatchStatusPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.srtBatchId {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.srtBatchName {
+  font-size: 13.5px;
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+.srtBatchActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.srtToolBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(7, 140, 255, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.srtToolBtn:hover {
+  background: #078cff;
+  color: #ffffff;
+}
+
+.srtToolBtn.warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.srtToolBtn.primary {
+  background: linear-gradient(135deg, #078cff, #0266cc);
+  color: #ffffff;
+}
+
+/* 4 KPI Grid */
+.srtBatchKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.srtBatchKpi {
+  background: rgba(3, 18, 32, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.srtBatchKpi .kpiLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.srtBatchKpi .kpiVal {
+  font-size: 22px;
+  font-weight: 900;
+  color: #f8fafc;
+  font-family: ui-monospace, monospace;
+}
+
+.srtBatchKpi .kpiVal.green { color: #34d399; }
+.srtBatchKpi .kpiVal.amber { color: #fbbf24; }
+.srtBatchKpi .kpiVal.red { color: #f87171; }
+
+.srtBatchKpi .kpiSub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Progress Bar */
+.srtBatchProgressWrap {
+  margin: 4px 0;
+}
+
+.srtBatchProgressBar {
+  height: 8px;
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.srtBatchProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #078cff, #38bdf8);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Distribution */
+.srtBatchDistSection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: rgba(2, 14, 26, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+}
+
+.srtBatchDistSection .distLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.distChips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.distChip {
+  font-size: 11.5px;
+  background: rgba(7, 140, 255, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #e2e8f0;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.distChip strong {
+  color: #38bdf8;
+}
+
+/* Table Toolbar */
+.srtTableSearchInput {
+  flex: 1;
+  max-width: 280px;
+  background: rgba(2, 14, 26, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: #f8fafc;
+}
+
+.srtTableFilters {
+  display: flex;
+  gap: 4px;
+}
+
+.srtFilterTab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.srtFilterTab.active {
+  background: rgba(7, 140, 255, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+/* Batch Table */
+.srtBatchTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.srtBatchTable th {
+  background: rgba(4, 20, 36, 0.85);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  white-space: nowrap;
+}
+
+.srtBatchTable td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.fileCell strong {
+  color: #f8fafc;
+}
+
+.dupBadge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9.5px;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.catCell {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.subCell {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.confCell {
+  color: #38bdf8;
+  font-family: ui-monospace, monospace;
+}
+
+.ambBadge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.ambBadge.low { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.ambBadge.moderate { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.ambBadge.high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+.sensCell {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.sensCell.public { color: #6ee7b7; }
+.sensCell.internal { color: #7dd3fc; }
+.sensCell.confidential { color: #fcd34d; }
+.sensCell.restricted { color: #fca5a5; }
+
+.destCell code {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(2, 10, 18, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.statusTag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.statusTag.routed { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+.statusTag.exception_queue,
+.statusTag.exception { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+.statusTag.failed { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+.statusTag.pending,
+.statusTag.processing { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+
+.srtViewBtn {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.srtViewBtn:hover {
+  background: #078cff;
+  color: #ffffff;
+}
+
+/* Modal Overlay for Single Doc within Bulk */
+.srtModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(1, 6, 12, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.srtModalContent {
+  background: #031322;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  padding: 20px;
+}
+
+.srtModalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.6px;
 }
