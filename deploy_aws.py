@@ -407,7 +407,10 @@ def step5_cloudfront(api_id: str):
         cur_cfg['DefaultCacheBehavior'] = dist_payload['DefaultCacheBehavior']
         cur_cfg['CacheBehaviors'] = dist_payload['CacheBehaviors']
         cur_cfg['CustomErrorResponses'] = dist_payload['CustomErrorResponses']
-        cf.update_distribution(DistributionConfig=cur_cfg, Id=dist_id, IfMatch=cur_etag)
+        try:
+            cf.update_distribution(DistributionConfig=cur_cfg, Id=dist_id, IfMatch=cur_etag)
+        except Exception as e:
+            print(f'   Note: CloudFront update warning: {e}')
     else:
         print('   Creating new CloudFront Distribution...')
         res = cf.create_distribution(DistributionConfig=dist_payload)
