@@ -174,8 +174,8 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
   const candidates = toList(data.candidates)
   const signals = toList(data.classification_signals)
   const ambiguity = (data.ambiguity && typeof data.ambiguity === 'object') ? data.ambiguity : {}
-  const ambLevel = toText(ambiguity.level, 'Moderate')
-  const ambScore = toPct(ambiguity.score, 35)
+  const ambLevel = toText(ambiguity.level, 'Low')
+  const ambScore = toPct(ambiguity.score, 0)
   const deepRetry = (data.deep_context_resolution && typeof data.deep_context_resolution === 'object') ? data.deep_context_resolution : null
   const metadata = (data.extracted_metadata && typeof data.extracted_metadata === 'object') ? data.extracted_metadata : {}
   const sensitivity = (data.sensitivity && typeof data.sensitivity === 'object') ? data.sensitivity : {}
@@ -371,13 +371,13 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
                 {ambiguity?.calculation_breakdown && (
                   <div className="srtAmbBreakdownGrid">
                     <span className="srtAmbFactorChip">
-                      Margin Factor: <strong>+{ambiguity.calculation_breakdown.competition_margin_factor || 18} pts</strong>
+                      Margin Factor: <strong>+{ambiguity.calculation_breakdown.competition_margin_factor ?? 0} pts</strong>
                     </span>
                     <span className="srtAmbFactorChip">
-                      Signal Conflict: <strong>+{ambiguity.calculation_breakdown.conflicting_signals_factor || 10} pts</strong>
+                      Signal Conflict: <strong>+{ambiguity.calculation_breakdown.conflicting_signals_factor ?? 0} pts</strong>
                     </span>
                     <span className="srtAmbFactorChip">
-                      Taxonomy Overlap: <strong>+{ambiguity.calculation_breakdown.taxonomy_overlap_factor || 7} pts</strong>
+                      Taxonomy Overlap: <strong>+{ambiguity.calculation_breakdown.taxonomy_overlap_factor ?? 0} pts</strong>
                     </span>
                   </div>
                 )}
