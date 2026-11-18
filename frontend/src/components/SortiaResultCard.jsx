@@ -96,7 +96,7 @@ const TREE_LEVEL_LABELS = ['Root Domain', 'Category', 'Sub-Category', 'Classific
 
 export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
   const [activeTab, setActiveTab] = useState('decision') // 'decision' | 'signals' | 'metadata'
-  const [showTree, setShowTree] = useState(true)
+  const [showTree, setShowTree] = useState(false)
   const [scrollTarget, setScrollTarget] = useState('')
 
   function jumpToSection(tab, elementId) {
@@ -328,60 +328,26 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
                 className="srtTreeToggleBtn"
                 onClick={() => setShowTree(v => !v)}
               >
-                {showTree ? 'Hide Tree' : 'Taxonomy Tree'}
+                {showTree ? 'Hide Tree' : 'Tree'}
               </button>
             </div>
 
             {showTree && (
-              <div className="srtTreeHero srtTreeCompact" aria-label="Taxonomy Hierarchy Tree">
-                <div className="srtTreeFlow">
-                  {cleanTaxonomy.map((levelName, idx) => {
-                    const isLast = idx === cleanTaxonomy.length - 1
-                    const lvlColor = isLast ? TREE_LEVEL_PALETTE[4] : TREE_LEVEL_PALETTE[idx % 4]
-                    return (
-                      <div
-                        key={idx}
-                        className="srtTreeLevel"
-                        style={{ marginLeft: `${idx * 20}px` }}
-                      >
-                        {idx > 0 && (
-                          <div
-                            className="srtTreeElbow"
-                            aria-hidden="true"
-                            style={{ borderColor: `${lvlColor.border}88` }}
-                          />
-                        )}
-                        <div className="srtTreeGutter">
-                          <div
-                            className="srtTreeDot"
-                            style={{
-                              background: lvlColor.dot,
-                              boxShadow: isLast ? '0 0 8px #34d399' : `0 0 6px ${lvlColor.dot}88`
-                            }}
-                          />
-                          {!isLast && <div className="srtTreeLine" />}
-                        </div>
-                        <div className="srtTreeNodeBody">
-                          <span className="srtTreeLevelTag" style={{ color: lvlColor.tag }}>
-                            {isLast
-                              ? `Terminal (L${idx + 1})`
-                              : `L${idx + 1} · ${TREE_LEVEL_LABELS[idx] || `Node ${idx + 1}`}`}
-                          </span>
-                          <span
-                            className="srtTreeNodeName"
-                            style={{
-                              color: isLast ? '#34d399' : '#f0f7ff',
-                              fontSize: isLast ? '14px' : '13px',
-                              fontWeight: isLast ? 700 : 600
-                            }}
-                          >
-                            {levelName}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+              <div className="srtMiniTree" aria-label="Classification taxonomy tree">
+                {cleanTaxonomy.map((levelName, idx) => {
+                  const isLast = idx === cleanTaxonomy.length - 1
+                  return (
+                    <div
+                      key={idx}
+                      className={`srtMiniTreeRow${isLast ? ' leaf' : ''}`}
+                      style={{ paddingLeft: `${idx * 16}px` }}
+                    >
+                      {idx > 0 && <span className="srtMiniTreeBranch" aria-hidden="true">└</span>}
+                      <span className="srtMiniTreeDot" aria-hidden="true" />
+                      <span className="srtMiniTreeName">{levelName}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </>

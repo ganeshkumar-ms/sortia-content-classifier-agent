@@ -5951,6 +5951,49 @@ html, body {
   min-height: 12px;
 }
 
+.srtMiniTree {
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(3, 15, 28, 0.55);
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.srtMiniTreeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+
+.srtMiniTreeRow.leaf {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.srtMiniTreeBranch {
+  color: rgba(125, 211, 252, 0.55);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.srtMiniTreeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  flex-shrink: 0;
+}
+
+.srtMiniTreeRow.leaf .srtMiniTreeDot {
+  background: #34d399;
+}
+
 .srtTreeHero {
   margin-top: 12px;
   padding: 14px 16px;
