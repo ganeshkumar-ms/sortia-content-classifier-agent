@@ -5921,6 +5921,113 @@ html, body {
   background: transparent !important;
 }
 
+/* === SORTIA TAXONOMY HIERARCHY TREE === */
+.srtTreeHero {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: rgba(3, 15, 28, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 12px;
+}
+
+.srtTreeHeroHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.srtTreeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+
+.srtTreeCount {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.srtTreeFlow {
+  display: flex;
+  flex-direction: column;
+}
+
+.srtTreeLevel {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding-left: 4px;
+  margin-bottom: 4px;
+}
+
+.srtTreeElbow {
+  position: absolute;
+  left: -16px;
+  top: 10px;
+  width: 14px;
+  height: 14px;
+  border-left: 2px solid;
+  border-bottom: 2px solid;
+  border-bottom-left-radius: 6px;
+}
+
+.srtTreeGutter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 14px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+.srtTreeDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.srtTreeLine {
+  width: 2px;
+  flex: 1 1 auto;
+  min-height: 18px;
+  margin-top: 4px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.45), rgba(52, 211, 153, 0.25));
+}
+
+.srtTreeNodeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  min-width: 0;
+}
+
+.srtTreeLevelTag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.srtTreeNodeName {
+  line-height: 1.3;
+  word-break: break-word;
+}
+
 /* === EXACT ALLY CHATPAGE PARITY (LAYOUT, SIDEBAR, HEADER, SURFACES, BUBBLES, COMPOSER) === */
 @media (min-width: 961px) {
   .layout {
