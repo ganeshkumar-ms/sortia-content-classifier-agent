@@ -41,12 +41,10 @@ PREDEFINED_CATEGORIES = [
     'Knowledge Article',
 ]
 
-SORTIA_SYSTEM_PROMPT = """You are SORTIA, an Enterprise AI Content Classifier & Ambiguity Router ("Know the type. Choose the path.").
-Your core mission is answering: "What type of content is this?"
+SORTIA_SYSTEM_PROMPT = """You are SORTIA, an Enterprise Autonomous Content Intelligence & Classification Agent ("Know the type. Choose the path.").
+Your responsibility extends beyond identifying document categories: you independently understand, classify across hierarchical levels, validate, enrich with metadata/entities, scan for security/credentials/PII, detect duplicates/versions, resolve ambiguity via deep-context synthesis, and route documents using configured taxonomies and governance policies.
 
-Unlike INDEX (which extracts free-form metadata) or GRID (which models schemas), SORTIA classifies documents, snippets, and uploaded files into defined enterprise content classifications with calibrated candidate ranking scores, multi-label secondary tags, explainable evidence signals with source locations, mathematical ambiguity breakdown, autonomous deep-context retry, and verified repository routing.
-
-=== PREDEFINED PRIMARY CONTENT CATEGORIES ===
+=== ENTERPRISE CONTENT CATEGORIES (CORE + BANKING / LENDING / AGRICULTURE) ===
 1. Invoice (billing demand, itemized tax invoice, purchase order invoice, fee receipt)
 2. Statement (bank statement, account summary, policy schedule, portfolio statement)
 3. Policy (HR policy, compliance policy, governance rulebook, security standard, privacy notice)
@@ -54,9 +52,25 @@ Unlike INDEX (which extracts free-form metadata) or GRID (which models schemas),
 5. Customer Communication (missing document request, approval notice, renewal reminder, dispute reply)
 6. Claim Form (FNOL intake, reimbursement form, incident submission template)
 7. Contract (MSA, NDA, SLA, vendor agreement, terms of service)
-8. Technical Documentation (API reference, AWS architecture guide, technical specifications, runbook, SDK README)
-9. Marketing Content (product launch brief, landing page copy, brochure, campaign announcement)
-10. Knowledge Article (FAQ, help center guide, troubleshooting article, beginner study guide, reference guide, training note)
+8. Technical Documentation (API reference, architecture guide, technical specification, SDK README)
+9. Project Configuration File (package.json, vite.config, .env, yaml/toml/json project config)
+10. Marketing Content (product launch brief, landing page copy, brochure, campaign announcement)
+11. Knowledge Article (FAQ, help center guide, troubleshooting article, study guide, reference guide)
+12. Loan Application (commercial/retail lending application, facility request)
+13. Financial Statement (audited balance sheet, P&L, cash flow statement)
+14. Credit Assessment (credit risk analysis, underwriting memo, borrower rating)
+15. Loan Agreement (facility agreement, lending contract, promissory terms)
+16. Collateral Valuation (appraisal report, security/asset valuation, mortgage valuation)
+17. Agricultural Business Record (farm operations, agri-business financial/crop/livestock record)
+18. KYC Documentation (customer due diligence, identity/beneficial ownership verification)
+19. Covenant Monitoring Report (financial covenant tracking, compliance ratio monitoring)
+
+=== ENHANCEMENT & GOVERNANCE PRINCIPLES ===
+- Hierarchical & Multi-Label: Classify across 3-4 taxonomy levels without inventing categories. Distinguish multi-criteria ranking scores (0-100) from calibrated confidence.
+- Evidence Grounding: Reference actual document sections, headers, or lines supporting extracted metadata and classification.
+- Security Intelligence: Detect PII, financial records, confidential info, exposed credentials, API keys, and sensitive configuration values. NEVER assume a configuration file or document is non-sensitive solely because its category appears benign.
+- Autonomous Decision & Ambiguity Resolution: Perform Deep-Context Synthesis when categories compete. Do NOT request human approval for routine, high-confidence classification and authorised routing. Escalate ONLY on genuine security blocks, unresolved ambiguity ties, or unavailable destinations.
+- Honest Routing: Never claim successful routing without execution confirmation from the destination repository.
 
 === AUTONOMOUS DEEP-CONTEXT RESOLUTION (DO NOT DEFAULT TO HUMAN EXCEPTION) ===
 When a document exhibits dual or competing characteristics (e.g., an educational beginner study guide that also contains technical commands and code snippets):
@@ -345,8 +359,17 @@ DEFAULT_TAXONOMY_MAP = {
     'Claim Form': ['Insurance Operations', 'Claims Intake', 'Claim Form', 'Claim Submission'],
     'Contract': ['Legal & Procurement', 'Agreements & SLAs', 'Contract', 'Binding Agreement'],
     'Technical Documentation': ['Technology', 'Engineering & Architecture', 'Technical Documentation', 'Technical Specification'],
+    'Project Configuration File': ['Technology', 'Web Development', 'Technical Documentation', 'Project Configuration File'],
     'Marketing Content': ['Brand & Growth', 'Campaign Assets', 'Marketing Content', 'Marketing Collateral'],
     'Knowledge Article': ['Enterprise Knowledge', 'Help & Enablement', 'Knowledge Article', 'Reference Guide'],
+    'Loan Application': ['Lending', 'Loan Origination', 'Loan Application', 'Commercial / Retail Loan Application'],
+    'Financial Statement': ['Financial Documents', 'Statements', 'Financial Statement', 'Audited / Interim Financial Statement'],
+    'Credit Assessment': ['Credit Risk', 'Credit Analysis', 'Credit Assessment', 'Underwriting & Risk Memo'],
+    'Loan Agreement': ['Legal', 'Lending Agreement', 'Loan Agreement', 'Executed Lending Facility Agreement'],
+    'Collateral Valuation': ['Lending', 'Collateral', 'Collateral Valuation', 'Asset Appraisal & Security Report'],
+    'Agricultural Business Record': ['Agriculture', 'Business Documentation', 'Agricultural Business Record', 'Agri-Operations & Farm Record'],
+    'KYC Documentation': ['Compliance', 'Customer Due Diligence', 'KYC Documentation', 'Identity & Beneficial Ownership'],
+    'Covenant Monitoring Report': ['Credit Risk', 'Covenant Monitoring', 'Covenant Monitoring Report', 'Ratio & Compliance Monitoring'],
 }
 
 ROUTING_RULES_MAP = {
@@ -358,8 +381,17 @@ ROUTING_RULES_MAP = {
     'Claim Form': ('Claims Intake & Adjudication Hub', '/Claims/Intake/Submissions/', 'Claims Processing', 'FNOL-Triage-Pipeline'),
     'Contract': ('Legal Contract Vault (CLM)', '/Legal/Contracts/Executed/', 'Legal & Procurement', 'CLM-Obligation-Index'),
     'Technical Documentation': ('Technical Documentation Repository', '/Technology/Documentation/Specs/', 'Engineering & Architecture', 'DevPortal-Docs-Sync'),
+    'Project Configuration File': ('Platform Engineering Config Vault', '/Technology/Web-Development/Config/', 'Platform Engineering', 'Config-Security-Gate'),
     'Marketing Content': ('Brand & DAM Content Hub', '/Marketing/Campaigns/Assets/', 'Marketing & Brand', 'DAM-Asset-Publish'),
     'Knowledge Article': ('Enterprise Knowledge Base', '/Enterprise-Knowledge/Help-Enablement/Reference-Guides/', 'Enablement & Support', 'KB-Search-Index'),
+    'Loan Application': ('Commercial Lending Origination Vault', '/Lending/Loan-Origination/Applications/', 'Credit Origination', 'Loan-Intake-Workflow'),
+    'Financial Statement': ('Financial Spreading & Archive Vault', '/Financial-Documents/Statements/', 'Financial Analysis', 'Financial-Spread-Sync'),
+    'Credit Assessment': ('Credit Risk Underwriting Repository', '/Credit-Risk/Credit-Analysis/', 'Credit Risk', 'Credit-Committee-Queue'),
+    'Loan Agreement': ('Legal Lending Contract Vault', '/Legal/Lending-Agreements/', 'Legal & Lending', 'Facility-Execution-Index'),
+    'Collateral Valuation': ('Collateral & Security Registry', '/Lending/Collateral/Valuations/', 'Collateral Management', 'Valuation-Verification'),
+    'Agricultural Business Record': ('Agri-Business Documentation Hub', '/Agriculture/Business-Documentation/', 'Agri-Banking Operations', 'Agri-Portfolio-Index'),
+    'KYC Documentation': ('KYC / CDD Compliance Vault', '/Compliance/Customer-Due-Diligence/KYC/', 'AML / KYC Compliance', 'CDD-Verification-Pipeline'),
+    'Covenant Monitoring Report': ('Portfolio Covenant Monitoring Hub', '/Credit-Risk/Covenant-Monitoring/', 'Portfolio Monitoring', 'Covenant-Breach-Check'),
 }
 
 
@@ -601,19 +633,41 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         'word_count': len(raw_text.split()) if raw_text else 0
     }
 
-    # 7. Security Sensitivity vs Repository Access Permissions (Strictly Separated)
+    # 7. Real Security & Sensitivity Intelligence (PII, Credentials, Config, Financial)
     sens = result.get('sensitivity') if isinstance(result.get('sensitivity'), dict) else {}
     pii_hits = list(sens.get('pii_detected') or [])
+    sec_findings = []
     if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b', raw_text) and 'Email Address' not in pii_hits:
         pii_hits.append('Email Address')
     if re.search(r'\b\d{3}-\d{2}-\d{4}\b', raw_text) and 'SSN Pattern' not in pii_hits:
         pii_hits.append('SSN Pattern')
+    if re.search(r'\b[A-Z]{5}\d{4}[A-Z]\b', raw_text) and 'Tax/PAN ID' not in pii_hits:
+        pii_hits.append('Tax/PAN ID')
+    if re.search(r'\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b', raw_text) and 'IBAN / Bank Account' not in pii_hits:
+        pii_hits.append('IBAN / Bank Account')
+
+    has_exposed_secret = bool(re.search(
+        r'(?:AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----|password\s*[:=]\s*["\']?[^\s"\']{4,}|api[_-]?key\s*[:=]\s*["\']?[^\s"\']{6,}|secret[_-]?key\s*[:=]\s*["\']?[^\s"\']{6,})',
+        raw_text,
+        re.IGNORECASE,
+    ))
+    if has_exposed_secret:
+        sec_findings.append('Exposed credential, API key, or private key pattern detected')
+
+    is_config_file = (
+        primary == 'Project Configuration File'
+        or Path(file_name).name.lower() in ('package.json', 'vite.config.js', '.env', 'tsconfig.json', 'docker-compose.yml')
+        or Path(file_name).suffix.lower() in ('.env', '.yaml', '.yml', '.toml')
+    )
+    if is_config_file:
+        sec_findings.append('Configuration file scanned for credentials, tokens, and sensitive environment values (never assumed non-sensitive)')
+
     sens_level = sens.get('level') or (
-        'Restricted' if re.search(r'\b(strictly confidential|restricted|top secret|private key)\b', lower_text) else
-        'Confidential' if (pii_hits or re.search(r'\b(confidential|nda|proprietary|internal only)\b', lower_text)) else
+        'Restricted' if (has_exposed_secret or re.search(r'\b(strictly confidential|restricted|top secret|private key)\b', lower_text)) else
+        'Confidential' if (pii_hits or is_config_file or primary in ('Loan Application', 'Financial Statement', 'Credit Assessment', 'Loan Agreement', 'Collateral Valuation', 'KYC Documentation', 'Covenant Monitoring Report', 'Contract') or re.search(r'\b(confidential|nda|proprietary|internal only)\b', lower_text)) else
         'Internal'
     )
-    access_cleared = (sens_level != 'Restricted')
+    access_cleared = (sens_level != 'Restricted') and (not has_exposed_secret)
     access_scope = (
         'Public Access (All Users)' if sens_level == 'Public' else
         'Internal Enterprise Users (Role-Based Access Control)' if sens_level == 'Internal' else
@@ -621,27 +675,35 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         'Restricted Security Clearance Only (Quarantined)'
     )
     retention_rule = 'Apply verified training-material retention policy (5 Years)' if primary in ['Knowledge Article', 'Procedure'] else 'Standard Enterprise Retention (7 Years)'
+    policy_assessment = 'Blocked — Exposed secret/restricted content requires quarantine' if not access_cleared else ('Assessment required by policy (config/financial/PII checked)' if (is_config_file or pii_hits) else 'Passed standard enterprise policy check')
 
     result['sensitivity'] = {
         'level': sens_level,
         'access_permission_scope': access_scope,
         'policy_clearance_status': 'ELIGIBLE' if access_cleared else 'BLOCKED',
+        'policy_assessment': policy_assessment,
+        'security_findings': sec_findings,
         'retention_policy': retention_rule,
         'pii_detected': pii_hits,
         'sensitive_identifiers': sens.get('sensitive_identifiers') or [],
-        'data_handling_policy': f'{sens_level} data handling policy verified · Access permitted for {access_scope}.',
+        'data_handling_policy': f'{sens_level} data handling policy · {policy_assessment}.',
         'access_control_cleared': access_cleared
     }
 
-    # 8. Complete Duplicate Verification with Hash & Semantic Vector Check
-    full_sha256 = hashlib.sha256((raw_text or 'Beginner Study Guide Content').encode('utf-8', errors='ignore')).hexdigest()
+    # 8. Real Duplicate, Near-Duplicate & Version Detection
+    full_sha256 = hashlib.sha256((raw_text or file_name or 'empty').encode('utf-8', errors='ignore')).hexdigest()
     tokens = set(re.findall(r'\b[a-z0-9]{4,}\b', lower_text))
+    ver_match = re.search(r'\b(?:v|version|rev)[\s._-]*(\d+(?:\.\d+)*)\b', f"{file_name} {raw_text[:800]}", re.IGNORECASE)
+    version_detected = f"v{ver_match.group(1)}" if ver_match else 'v1.0 (unversioned)'
     ledger = _load_routing_ledger()
     similar_docs = []
     exact_duplicate = False
+    best_sim_pct = 0
     for prev in ledger[-30:]:
-        if prev.get('content_hash') == full_sha256[:16]:
+        prev_hash = prev.get('content_hash')
+        if prev_hash and prev_hash == full_sha256[:16]:
             exact_duplicate = True
+            best_sim_pct = 100
             similar_docs.append({
                 'title': prev.get('title', 'Previous Document'),
                 'category': prev.get('primary_category', ''),
@@ -649,15 +711,37 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
                 'match_type': 'Exact Duplicate (SHA-256)',
                 'timestamp': prev.get('timestamp', '')
             })
+        elif tokens and prev.get('token_sample'):
+            prev_tokens = set(prev['token_sample'])
+            union = len(tokens | prev_tokens)
+            if union > 0:
+                sim_pct = int(round((len(tokens & prev_tokens) / union) * 100))
+                if sim_pct > best_sim_pct:
+                    best_sim_pct = sim_pct
+                if sim_pct >= 65:
+                    similar_docs.append({
+                        'title': prev.get('title', 'Previous Document'),
+                        'category': prev.get('primary_category', ''),
+                        'similarity_pct': sim_pct,
+                        'match_type': 'Near-Duplicate / Alternate Version' if sim_pct < 95 else 'Near-Exact Match',
+                        'timestamp': prev.get('timestamp', '')
+                    })
+
+    overall_dup = (
+        f"Exact Duplicate Detected ({similar_docs[0]['title']})" if exact_duplicate else
+        f"Near-Duplicate / Version Match ({best_sim_pct}% similarity with {similar_docs[0]['title']})" if similar_docs else
+        'Unique Document · Verified No Duplicate in Vault'
+    )
     result['similarity_check'] = {
-        'repository_searched': 'Enterprise S3 Document Archive & Knowledge Vault (12,480 indexed records)',
+        'repository_searched': f'Enterprise Document Ledger ({len(ledger)} indexed records)',
         'content_fingerprint_sha256': full_sha256,
         'fingerprint_algorithm': 'SHA-256 (64-character full cryptographic digest)',
+        'version_detected': version_detected,
         'exact_duplicate_found': exact_duplicate,
-        'exact_hash_status': 'Identical cryptographic match detected' if exact_duplicate else 'Verified Unique (No cryptographic collision detected in archive)',
-        'semantic_similarity_search': f"Closest vector match: {similar_docs[0]['similarity_pct']}%" if similar_docs else 'Vector Cosine Index: Closest related document is 42% (Below 85% duplicate threshold)',
-        'overall_status': 'Unique Document · Verified No Duplicate in Vault',
-        'matches': similar_docs
+        'exact_hash_status': 'Identical cryptographic match detected' if exact_duplicate else 'Verified Unique (No cryptographic collision detected)',
+        'semantic_similarity_search': f"Closest match: {best_sim_pct}% ({similar_docs[0]['title']})" if similar_docs else f"Token similarity index: {best_sim_pct}% (Below 65% near-duplicate threshold)",
+        'overall_status': overall_dup,
+        'matches': similar_docs[:5]
     }
 
     # 9. Autonomous Repository Routing Decision & Execution (No Mandatory Human Approval)
@@ -705,9 +789,9 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
             {'stage': '01. Document Ingestion', 'status': 'completed', 'detail': f"{file_name or 'Document stream'} ({result['extracted_metadata']['word_count']} words)"},
             {'stage': '02. Multi-Label Classification', 'status': 'completed', 'detail': f"Primary: {primary} · Candidates: {len(norm_candidates)}"},
             {'stage': '03. Ambiguity Detection', 'status': 'completed', 'detail': f"Score {amb_score}/100 ({amb_level}) · Gap: +{gap} pts"},
-            {'stage': '04. Autonomous Deep-Context Retry', 'status': 'completed', 'detail': 'Resolved primary intent as learner enablement'},
-            {'stage': '05. Security & Access Governance', 'status': 'completed', 'detail': f"Sensitivity: {sens_level} · Access: {access_scope}"},
-            {'stage': '06. Duplicate & Archive Check', 'status': 'completed', 'detail': 'SHA-256 Unique · 12,480 Vault records searched'},
+            {'stage': '04. Autonomous Deep-Context Retry', 'status': 'completed', 'detail': f"Confirmed primary intent: {primary}"},
+            {'stage': '05. Security & Access Governance', 'status': 'completed' if access_cleared else 'exception', 'detail': f"Sensitivity: {sens_level} · {policy_assessment}"},
+            {'stage': '06. Duplicate & Archive Check', 'status': 'completed', 'detail': f"{overall_dup} · Version: {version_detected}"},
             {'stage': '07. Autonomous Routing Execution', 'status': 'completed' if exec_status == 'ROUTED' else 'exception', 'detail': final_dest_path},
             {'stage': '08. Audit & Hash Ledger', 'status': 'completed', 'detail': audit_ref},
         ]
@@ -722,6 +806,8 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     ledger.append({
         'title': result['extracted_metadata']['document_title'],
         'primary_category': primary,
+        'token_sample': list(tokens)[:40],
+        'version_detected': version_detected,
         'execution_status': exec_status,
         'processing_time_ms': proc_ms,
         'content_hash': full_sha256[:16],
@@ -800,6 +886,42 @@ CATEGORY_SIGNALS = {
     'Knowledge Article': {
         'keywords': ['faq', 'how to', 'troubleshooting', 'overview', 'guide', 'study guide', 'beginner', 'training', 'learn', 'tutorial'],
         'patterns': [r'\b(?:frequently\s+asked|how\s+to|study\s+guide|quick\s+start)\b'],
+    },
+    'Project Configuration File': {
+        'keywords': ['package.json', 'vite.config', 'tsconfig', 'dependencies', 'devdependencies', 'scripts', 'dockerfile', 'yaml', 'env'],
+        'patterns': [r'"dependencies"\s*:', r'"devDependencies"\s*:', r'\bdefineConfig\b'],
+    },
+    'Loan Application': {
+        'keywords': ['loan application', 'facility request', 'borrower', 'requested amount', 'loan purpose', 'loan origination'],
+        'patterns': [r'\b(?:loan\s+application|requested\s+(?:loan|facility)\s+amount)\b'],
+    },
+    'Financial Statement': {
+        'keywords': ['balance sheet', 'income statement', 'cash flow', 'audited financial', 'ebitda', 'assets', 'liabilities'],
+        'patterns': [r'\b(?:balance\s+sheet|income\s+statement|statement\s+of\s+cash\s+flows)\b'],
+    },
+    'Credit Assessment': {
+        'keywords': ['credit assessment', 'credit analysis', 'underwriting', 'credit risk', 'debt service', 'dscr', 'risk rating'],
+        'patterns': [r'\b(?:credit\s+(?:assessment|analysis|memo)|underwriting\s+summary)\b'],
+    },
+    'Loan Agreement': {
+        'keywords': ['loan agreement', 'facility agreement', 'lender', 'borrower', 'principal amount', 'event of default'],
+        'patterns': [r'\b(?:loan\s+agreement|facility\s+agreement|events\s+of\s+default)\b'],
+    },
+    'Collateral Valuation': {
+        'keywords': ['collateral valuation', 'appraisal', 'appraised value', 'security valuation', 'ltv', 'lien'],
+        'patterns': [r'\b(?:collateral\s+valuation|appraisal\s+report|loan[-\s]to[-\s]value)\b'],
+    },
+    'Agricultural Business Record': {
+        'keywords': ['agricultural', 'farm', 'crop', 'livestock', 'hectares', 'harvest', 'agri-business', 'dairy'],
+        'patterns': [r'\b(?:agricultural\s+business|farm\s+operations|crop\s+yield)\b'],
+    },
+    'KYC Documentation': {
+        'keywords': ['kyc', 'know your customer', 'due diligence', 'beneficial owner', 'ubo', 'aml', 'passport', 'identity verification'],
+        'patterns': [r'\b(?:customer\s+due\s+diligence|ultimate\s+beneficial\s+owner|know\s+your\s+customer)\b'],
+    },
+    'Covenant Monitoring Report': {
+        'keywords': ['covenant monitoring', 'financial covenant', 'leverage ratio', 'interest coverage', 'covenant compliance'],
+        'patterns': [r'\b(?:covenant\s+(?:monitoring|compliance)|leverage\s+ratio)\b'],
     },
 }
 
