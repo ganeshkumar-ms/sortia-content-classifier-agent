@@ -548,32 +548,27 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         taxonomy = list(DEFAULT_TAXONOMY_MAP.get(primary, ['Enterprise Content', result.get('domain') or 'General Operations', primary, result.get('subtype') or 'Standard Document']))
     result['taxonomy_hierarchy'] = [str(t) for t in taxonomy[:5]]
 
-    # 5. Explainable Signals with Source Locations & Category Influence
+    # 5. Explainable Signals with Source Locations & Category Influence (derived from actual document)
     enriched_signals = []
+    first_lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
+    top_snippet = first_lines[0][:140] if first_lines else (file_name or 'Submitted document')
+    body_snippet = next((ln[:140] for ln in first_lines[1:6] if len(ln) > 25), raw_text[:140])
     default_signals = [
         {
-            'signal': 'Pedagogical Title & Target Audience',
-            'source_location': 'Page 1, Header',
-            'explanation': 'Explicitly frames content for beginners and learners, indicating educational enablement.',
-            'evidence': file_name or 'Beginner Study Guide: Cloud Fundamentals',
+            'signal': 'Filename & Opening Header Evidence',
+            'source_location': 'File Metadata / Page 1 Header',
+            'explanation': f'Filename ({file_name or "text stream"}) and opening heading establish primary context for {primary}.',
+            'evidence': f"{file_name + ' — ' if file_name else ''}{top_snippet}",
             'weight': 'High',
-            'category_influence': f'Supports {primary} (+25 pts) · Distinguishes from Technical Documentation'
+            'category_influence': f'Supports {primary} (+{max(15, top1 - 60)} pts)'
         },
         {
-            'signal': 'Instructional Narrative & Learning Objectives',
-            'source_location': 'Page 1, Section 1',
-            'explanation': 'Structured with foundational summaries and conceptual explanations rather than API specs.',
-            'evidence': 'This guide outlines fundamental architecture principles and core practices for new practitioners.',
+            'signal': 'Structural & Domain Terminology',
+            'source_location': 'Page 1, Primary Content',
+            'explanation': f'Terminology, formatting, and intent align with {primary} rather than {norm_candidates[1]["category"]}.',
+            'evidence': body_snippet or top_snippet,
             'weight': 'High',
-            'category_influence': f'Supports {primary} (+20 pts) & Training Note (+18 pts)'
-        },
-        {
-            'signal': 'Technical Terminology & Syntax Samples',
-            'source_location': 'Page 2, Section 3',
-            'explanation': 'Contains technical CLI syntax and service names, providing supporting evidence for technical documentation.',
-            'evidence': 'aws s3 cp document.pdf s3://enterprise-vault/archive/',
-            'weight': 'Medium',
-            'category_influence': f'Supports Technical Documentation (+18 pts) as secondary candidate'
+            'category_influence': f'Supports {primary} over {norm_candidates[1]["category"]}'
         }
     ]
     raw_signals = signals if len(signals) >= 2 else default_signals
@@ -592,17 +587,18 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     meta = result.get('extracted_metadata') if isinstance(result.get('extracted_metadata'), dict) else {}
     dates_found = meta.get('dates') if isinstance(meta.get('dates'), list) and meta.get('dates') else re.findall(r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?|\b\d{4}-\d{2}-\d{2}\b', raw_text)[:5]
     ids_found = meta.get('identifiers') if isinstance(meta.get('identifiers'), list) and meta.get('identifiers') else re.findall(r'\b[A-Z]{2,6}-\d{2,8}\b', raw_text)[:5]
-    ext = Path(file_name).suffix.upper().lstrip('.') if file_name else 'PDF'
+    ext = Path(file_name).suffix.upper().lstrip('.') if file_name else 'TEXT'
+    inferred_title = Path(file_name).stem.replace('_', ' ').replace('-', ' ').title() if file_name else (first_lines[0][:60] if first_lines else f"{primary} Document")
     result['extracted_metadata'] = {
-        'document_title': meta.get('document_title') or result.get('classification_title') or (file_name or 'Beginner Study Guide'),
-        'author_or_issuer': meta.get('author_or_issuer') or 'Enterprise Enablement Team',
-        'dates': list(dict.fromkeys([str(d) for d in dates_found]))[:5] or ['2026-11-17'],
-        'identifiers': list(dict.fromkeys([str(i) for i in ids_found]))[:5] or ['KB-GUIDE-001'],
+        'document_title': meta.get('document_title') or result.get('classification_title') or inferred_title,
+        'author_or_issuer': meta.get('author_or_issuer') or 'Not specified in source',
+        'dates': list(dict.fromkeys([str(d) for d in dates_found]))[:5],
+        'identifiers': list(dict.fromkeys([str(i) for i in ids_found]))[:5],
         'version': meta.get('version') or '1.0',
-        'entities': (meta.get('entities') or ['Enterprise Cloud', 'AWS'])[:6],
-        'keywords': (meta.get('keywords') or ['study guide', 'cloud', 'training', 'knowledge', 'fundamentals'])[:8],
-        'file_type': ext or 'PDF',
-        'word_count': len(raw_text.split()) if raw_text else 240
+        'entities': (meta.get('entities') or [])[:6],
+        'keywords': (meta.get('keywords') or [primary.lower(), (result.get('domain') or 'enterprise').lower()])[:8],
+        'file_type': ext or 'TEXT',
+        'word_count': len(raw_text.split()) if raw_text else 0
     }
 
     # 7. Security Sensitivity vs Repository Access Permissions (Strictly Separated)
@@ -764,47 +760,108 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     return result
 
 
-def rule_based_classification_fallback(content: str, file_name: str = '') -> dict:
-    """Deterministic keyword classifier when Bedrock is unreachable."""
-    text = f"{file_name} {content}".lower()
-    scores = {
-        'Invoice': sum(text.count(k) * 20 for k in ['invoice', 'amount due', 'tax id', 'bill to', 'remit']),
-        'Statement': sum(text.count(k) * 20 for k in ['statement', 'opening balance', 'closing balance', 'transactions', 'summary']),
-        'Policy': sum(text.count(k) * 20 for k in ['policy', 'compliance', 'mandatory', 'employees must', 'effective date']),
-        'Procedure': sum(text.count(k) * 20 for k in ['step 1', 'procedure', 'sop', 'workflow', 'verify', 'approve']),
-        'Customer Communication': sum(text.count(k) * 20 for k in ['dear customer', 'missing document', 'please submit', 'notice', 'repair invoice']),
-        'Claim Form': sum(text.count(k) * 20 for k in ['claim form', 'fnol', 'claimant', 'policy number', 'incident date']),
-        'Contract': sum(text.count(k) * 20 for k in ['agreement', 'whereas', 'indemnify', 'liability', 'sla', 'party']),
-        'Technical Documentation': sum(text.count(k) * 20 for k in ['api', 'lambda', 'endpoint', 'dynamodb', 'architecture', 'json', 'technical', 'specification', 'command', 'cli']),
-        'Marketing Content': sum(text.count(k) * 20 for k in ['launch', 'discover', 'upgrade today', 'campaign', 'cta']),
-        'Knowledge Article': sum(text.count(k) * 18 for k in ['faq', 'how to', 'troubleshooting', 'overview', 'guide', 'study guide', 'beginner', 'training', 'learn', 'concepts']),
-    }
+CATEGORY_SIGNALS = {
+    'Invoice': {
+        'keywords': ['invoice', 'amount due', 'tax id', 'bill to', 'remit', 'subtotal', 'vat', 'gst', 'payment terms', 'due date'],
+        'patterns': [r'\bINV[-\s#]?\d+', r'\b(?:amount\s+due|total\s+due|bill\s+to|remit\s+to)\b'],
+    },
+    'Statement': {
+        'keywords': ['statement', 'opening balance', 'closing balance', 'transactions', 'account summary', 'billing period', 'statement date'],
+        'patterns': [r'\b(?:opening|closing|ending)\s+balance\b', r'\bstatement\s+(?:period|date|summary)\b'],
+    },
+    'Policy': {
+        'keywords': ['policy', 'compliance', 'mandatory', 'employees must', 'effective date', 'governance', 'prohibited', 'scope', 'enforcement'],
+        'patterns': [r'\b(?:policy\s+(?:id|no|number|#)|effective\s+date|shall\s+not|must\s+comply)\b'],
+    },
+    'Procedure': {
+        'keywords': ['step 1', 'procedure', 'sop', 'workflow', 'runbook', 'checklist', 'prerequisites', 'escalation'],
+        'patterns': [r'\b(?:step\s*[1-9]|standard\s+operating\s+procedure|sop[-\s#]?\d*)\b'],
+    },
+    'Customer Communication': {
+        'keywords': ['dear customer', 'valued customer', 'dear ', 'missing document', 'please submit', 'important notice', 'your account', 'sincerely'],
+        'patterns': [r'\bdear\s+(?:valued\s+)?(?:customer|client|member|cardholder)\b'],
+    },
+    'Claim Form': {
+        'keywords': ['claim form', 'fnol', 'claimant', 'policy number', 'incident date', 'loss description', 'beneficiary', 'claim id'],
+        'patterns': [r'\b(?:claim\s+(?:form|number|id)|first\s+notice\s+of\s+loss|incident\s+date)\b'],
+    },
+    'Contract': {
+        'keywords': ['agreement', 'whereas', 'indemnify', 'liability', 'sla', 'governing law', 'termination', 'counterparty', 'confidentiality'],
+        'patterns': [r'\b(?:whereas|hereinafter|indemnif(?:y|ication)|governing\s+law|in\s+witness\s+whereof)\b'],
+    },
+    'Technical Documentation': {
+        'keywords': ['api', 'lambda', 'endpoint', 'dynamodb', 'architecture', 'json', 'schema', 'specification', 'cli', 'sdk', 'deployment', 'dockerfile', 'terraform'],
+        'patterns': [r'\b(?:https?://|/api/|GET\s+/|POST\s+/|aws\s+\w+|```)\b'],
+    },
+    'Marketing Content': {
+        'keywords': ['launch', 'discover', 'upgrade today', 'campaign', 'cta', 'limited offer', 'introducing', 'webinar', 'sign up'],
+        'patterns': [r'\b(?:get\s+started|learn\s+more|sign\s+up\s+today|exclusive\s+offer)\b'],
+    },
+    'Knowledge Article': {
+        'keywords': ['faq', 'how to', 'troubleshooting', 'overview', 'guide', 'study guide', 'beginner', 'training', 'learn', 'tutorial'],
+        'patterns': [r'\b(?:frequently\s+asked|how\s+to|study\s+guide|quick\s+start)\b'],
+    },
+}
 
-    # Pedagogical beginner guide special weighting
-    is_study_guide = any(k in text for k in ['study guide', 'beginner', 'fundamentals', 'training note', 'reference guide'])
-    if is_study_guide:
-        scores['Knowledge Article'] = max(scores['Knowledge Article'], 65)
-        scores['Technical Documentation'] = max(scores['Technical Documentation'], 55)
+
+def _score_categories_weighted(content: str, file_name: str = '') -> tuple[list[tuple[str, int]], dict]:
+    """Multi-signal weighted scorer: weights filename (35), headings (25), structural regexes (30), and capped body keywords."""
+    fn_clean = (file_name or '').replace('_', ' ').replace('-', ' ').lower()
+    lines = [ln.strip() for ln in (content or '').splitlines() if ln.strip()]
+    head_text = ' '.join(lines[:10]).lower()
+    body_text = (content or '').lower()
+
+    scores: dict[str, int] = {}
+    matched_cues: dict[str, list[str]] = {}
+    for cat, cfg in CATEGORY_SIGNALS.items():
+        s = 0
+        cues: list[str] = []
+        for kw in cfg['keywords']:
+            if kw in fn_clean:
+                s += 35
+                cues.append(f"filename:{kw}")
+            if kw in head_text:
+                s += 22
+                cues.append(f"heading:{kw}")
+            cnt = body_text.count(kw)
+            if cnt > 0:
+                s += min(3, cnt) * 10
+        for pat in cfg['patterns']:
+            if re.search(pat, body_text, re.IGNORECASE) or re.search(pat, fn_clean, re.IGNORECASE):
+                s += 28
+                cues.append("structural_pattern")
+        scores[cat] = s
+        matched_cues[cat] = cues[:4]
 
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    meta_hints = {
+        'filename_stem': Path(file_name).stem.replace('_', ' ').replace('-', ' ') if file_name else '',
+        'file_ext': Path(file_name).suffix.lower() if file_name else '',
+        'headings': [ln[:100] for ln in lines[:5]],
+        'word_count': len((content or '').split()),
+        'matched_cues': matched_cues.get(ranked[0][0], []) if ranked else [],
+    }
+    return ranked, meta_hints
+
+
+def rule_based_classification_fallback(content: str, file_name: str = '') -> dict:
+    """Deterministic multi-signal classifier when Bedrock is unreachable."""
+    ranked, hints = _score_categories_weighted(content, file_name)
     best_cat, best_raw = ranked[0]
     second_cat, second_raw = ranked[1]
 
-    if is_study_guide:
-        best_cat, conf, second_cat, second_conf = 'Knowledge Article', 65, 'Technical Documentation', 55
-    elif best_raw == 0:
-        best_cat, conf, second_cat, second_conf = 'Knowledge Article', 65, 'Technical Documentation', 55
+    if best_raw == 0:
+        best_cat, conf, second_cat, second_conf = 'Knowledge Article', 60, 'Technical Documentation', 45
     else:
-        conf = min(95, 58 + best_raw)
-        second_conf = min(conf - 6, 40 + second_raw) if second_raw > 0 else 30
+        conf = min(96, 55 + min(41, best_raw // 3))
+        second_conf = min(conf - 5, 42 + min(38, second_raw // 3)) if second_raw > 0 else 28
 
-    title_base = Path(file_name).stem.replace('_', ' ').replace('-', ' ').title() if file_name else f"Beginner Study Guide: Cloud Fundamentals" if is_study_guide else f"{best_cat} Document"
+    title_base = hints['filename_stem'].title() if hints['filename_stem'] else (hints['headings'][0][:60] if hints['headings'] else f"{best_cat} Document")
+    is_study_guide = best_cat == 'Knowledge Article' and any(k in f"{file_name} {content}".lower() for k in ['study guide', 'beginner', 'training'])
 
     summary_text = (
-        f"The title identifies the document as a beginner study guide. Its educational purpose supports Knowledge Article and Training Note classifications. "
-        f"Technical explanations provide additional evidence for Technical Documentation, but the primary purpose is learning rather than technical implementation."
-        if is_study_guide else
-        f"Classified as {best_cat} with {conf} ranking score based on structural patterns and domain evidence ({len(content.split())} words analyzed)."
+        f"Classified as {best_cat} (score {conf}/100) based on filename cues, opening headings, and domain terminology "
+        f"({hints['word_count']} words analyzed). Secondary candidate: {second_cat} ({second_conf}/100)."
     )
 
     res = {
@@ -812,7 +869,7 @@ def rule_based_classification_fallback(content: str, file_name: str = '') -> dic
         'classification_title': title_base[:60],
         'document_type_detected': 'Beginner Study Guide' if is_study_guide else f'{best_cat} Document',
         'primary_category': best_cat,
-        'secondary_classifications': ['Training Note', 'Technical Documentation'] if is_study_guide else [second_cat],
+        'secondary_classifications': [second_cat],
         'taxonomy_hierarchy': ['Enterprise Knowledge', 'Help & Enablement', 'Reference Guide'] if best_cat == 'Knowledge Article' else DEFAULT_TAXONOMY_MAP.get(best_cat, ['Enterprise Content', best_cat]),
         'subtype': 'Reference Guide' if best_cat == 'Knowledge Article' else 'Technical Specification',
         'domain': 'Enterprise Cloud & Technology Training',
@@ -943,7 +1000,16 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
                         'content': [{'text': txt[:1500]}],
                     })
 
-        prompt_text = safe_text
+        ranked_hints, meta_hints = _score_categories_weighted(safe_text, file_name)
+        top_hint_str = ', '.join(f"{c} ({sc})" for c, sc in ranked_hints[:3] if sc > 0) or 'None'
+        signal_block = (
+            f"[PRE-EXTRACTED FILE SIGNALS]\n"
+            f"Filename: {file_name or 'Inline text'} | Extension: {meta_hints['file_ext'] or 'text'} | Words: {meta_hints['word_count']}\n"
+            f"Opening Lines: {' | '.join(meta_hints['headings'][:3])}\n"
+            f"Deterministic Pre-Ranking: {top_hint_str}\n"
+            f"Matched Cues: {', '.join(meta_hints['matched_cues']) or 'General body text'}\n"
+        )
+        prompt_text = f"{signal_block}\n{safe_text}"
         if file_name:
             prompt_text = f"[ATTACHED FILE TO CLASSIFY: {file_name}]\n{prompt_text}"
 
@@ -977,7 +1043,7 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
                     modelId=model,
                     messages=sanitized_messages,
                     system=[{'text': SORTIA_SYSTEM_PROMPT}],
-                    inferenceConfig={'temperature': 0.15, 'maxTokens': 3000},
+                    inferenceConfig={'temperature': 0.0, 'maxTokens': 3000},
                 )
                 raw_output = response['output']['message']['content'][0]['text']
                 parsed = clean_and_parse_json(raw_output)
