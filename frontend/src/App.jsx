@@ -659,7 +659,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="messages" id="messages" ref={messagesRef} aria-live="polite">
+              <div className="messages" ref={messagesRef} id="messages" ref={messagesRef} aria-live="polite">
                 {messages.length === 0 && (
                   <div className="card emptyCard" style={{ margin: '40px auto' }}>
                     <small>EMPTY WORKSPACE</small>
