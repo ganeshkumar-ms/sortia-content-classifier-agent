@@ -96,7 +96,7 @@ const TREE_LEVEL_LABELS = ['Root Domain', 'Category', 'Sub-Category', 'Classific
 
 export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
   const [activeTab, setActiveTab] = useState('decision') // 'decision' | 'signals' | 'metadata'
-  const [showTree, setShowTree] = useState(false)
+  const [showTree, setShowTree] = useState(true)
   const [scrollTarget, setScrollTarget] = useState('')
 
   function jumpToSection(tab, elementId) {
