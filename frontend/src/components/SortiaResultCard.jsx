@@ -253,15 +253,24 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
     ? 'Restricted — manual review required'
     : 'Not verified'
 
-  // Clean taxonomy hierarchy: keep parent-child taxonomy nodes distinct from secondary labels
+  // Clean taxonomy hierarchy: keep parent-child taxonomy nodes distinct from secondary labels (3-4 levels)
   const cleanTaxonomy = (() => {
     const base = taxonomy.map(t => toText(t)).filter(Boolean)
-    if (base.length === 0) return [primaryCategory, subtype].filter(Boolean)
-    const hasPrimary = base.some(n => n.toLowerCase() === primaryCategory.toLowerCase())
-    if (!hasPrimary && base.length >= 2) {
-      return [...base.slice(0, -1), primaryCategory, base[base.length - 1]]
+    const nodes = [...base]
+    if (domain && !nodes.some(n => n.toLowerCase() === domain.toLowerCase())) {
+      nodes.unshift(domain)
     }
-    return base
+    if (primaryCategory && !nodes.some(n => n.toLowerCase() === primaryCategory.toLowerCase())) {
+      if (nodes.length >= 2) {
+        nodes.splice(nodes.length - 1, 0, primaryCategory)
+      } else {
+        nodes.push(primaryCategory)
+      }
+    }
+    if (subtype && subtype.toLowerCase() !== primaryCategory.toLowerCase() && !nodes.some(n => n.toLowerCase() === subtype.toLowerCase())) {
+      nodes.push(subtype)
+    }
+    return nodes
   })()
 
   // Filter secondary attributes so they don't duplicate primaryCategory or taxonomy nodes

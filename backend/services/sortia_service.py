@@ -94,7 +94,7 @@ Respond ONLY with valid JSON matching this exact schema:
   "document_type_detected": "Specific document format/type (e.g., Beginner Study Guide, Vendor MSA, AWS Architecture Runbook)",
   "primary_category": "One of the 10 predefined categories above",
   "secondary_classifications": ["Training Note", "Technical Documentation", "Reference Guide"],
-  "taxonomy_hierarchy": ["Enterprise Knowledge", "Help & Enablement", "Reference Guide"],
+  "taxonomy_hierarchy": ["Enterprise Knowledge", "AI & Engineering Enablement", "Knowledge Article", "Implementation Guide"],
   "subtype": "Specific subtype (e.g., Study Guide, Missing Document Request, Vendor SLA)",
   "domain": "Business domain (e.g., Technology · Cloud Training, Insurance · Motor Claims)",
   "confidence": 65,
@@ -337,16 +337,16 @@ def _enforce_ambiguity_guardrail(result: dict) -> dict:
 LEDGER_PATH = (Path('/tmp') if os.path.exists('/tmp') else Path(__file__).resolve().parent.parent / 'uploads') / 'sortia_routing_ledger.json'
 
 DEFAULT_TAXONOMY_MAP = {
-    'Invoice': ['Finance & Billing', 'Accounts Payable', 'Invoices & Receipts'],
-    'Statement': ['Finance & Accounting', 'Account Reporting', 'Statements & Schedules'],
-    'Policy': ['Governance & Compliance', 'Enterprise Policies', 'Standard Policy'],
-    'Procedure': ['Operations & Delivery', 'Standard Operating Procedures', 'Workflow Runbook'],
-    'Customer Communication': ['Customer Operations', 'Outbound Communications', 'Customer Notice'],
-    'Claim Form': ['Insurance Operations', 'Claims Intake', 'Claim Submission'],
-    'Contract': ['Legal & Procurement', 'Agreements & SLAs', 'Binding Contract'],
-    'Technical Documentation': ['Technology', 'Engineering & Architecture', 'Technical Specification'],
-    'Marketing Content': ['Brand & Growth', 'Campaign Assets', 'Marketing Collateral'],
-    'Knowledge Article': ['Enterprise Knowledge', 'Help & Enablement', 'Reference Guide'],
+    'Invoice': ['Finance & Billing', 'Accounts Payable', 'Invoice', 'Vendor Invoice & Receipt'],
+    'Statement': ['Finance & Accounting', 'Account Reporting', 'Statement', 'Periodic Statement & Schedule'],
+    'Policy': ['Governance & Compliance', 'Enterprise Policies', 'Policy', 'Standard Compliance Policy'],
+    'Procedure': ['Operations & Delivery', 'Standard Operating Procedures', 'Procedure', 'Workflow Runbook'],
+    'Customer Communication': ['Customer Operations', 'Outbound Communications', 'Customer Communication', 'Customer Notice'],
+    'Claim Form': ['Insurance Operations', 'Claims Intake', 'Claim Form', 'Claim Submission'],
+    'Contract': ['Legal & Procurement', 'Agreements & SLAs', 'Contract', 'Binding Agreement'],
+    'Technical Documentation': ['Technology', 'Engineering & Architecture', 'Technical Documentation', 'Technical Specification'],
+    'Marketing Content': ['Brand & Growth', 'Campaign Assets', 'Marketing Content', 'Marketing Collateral'],
+    'Knowledge Article': ['Enterprise Knowledge', 'Help & Enablement', 'Knowledge Article', 'Reference Guide'],
 }
 
 ROUTING_RULES_MAP = {
@@ -544,8 +544,8 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     result['secondary_classifications'] = list(dict.fromkeys([str(x) for x in sec_labels if x]))[:5]
 
     taxonomy = result.get('taxonomy_hierarchy')
-    if not isinstance(taxonomy, list) or len(taxonomy) < 2:
-        taxonomy = list(DEFAULT_TAXONOMY_MAP.get(primary, ['Enterprise Knowledge', 'Help & Enablement', 'Reference Guide']))
+    if not isinstance(taxonomy, list) or len(taxonomy) < 3:
+        taxonomy = list(DEFAULT_TAXONOMY_MAP.get(primary, ['Enterprise Content', result.get('domain') or 'General Operations', primary, result.get('subtype') or 'Standard Document']))
     result['taxonomy_hierarchy'] = [str(t) for t in taxonomy[:5]]
 
     # 5. Explainable Signals with Source Locations & Category Influence
