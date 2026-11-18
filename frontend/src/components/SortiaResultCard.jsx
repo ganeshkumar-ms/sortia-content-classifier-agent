@@ -207,6 +207,18 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
   const sensLevel = toText(sensitivity.level, 'Not verified')
   const accessScope = toText(sensitivity.access_permission_scope, 'Not verified')
   const autoRoute = (data.autonomous_routing && typeof data.autonomous_routing === 'object') ? data.autonomous_routing : {}
+  const ownerOrg = toText(
+    data.owner_organization || metadata.owner_organization || autoRoute.owner_organization || metadata.entities?.[0] || metadata.author_or_issuer,
+    'Enterprise Entity'
+  )
+  const uniqueId = toText(
+    data.unique_entity_id || metadata.unique_entity_id || autoRoute.unique_entity_id || metadata.identifiers?.[0] || traceId,
+    'ENT-001'
+  )
+  const standardizedFilename = toText(
+    data.standardized_filename || metadata.standardized_filename || autoRoute.standardized_filename || `${ownerOrg.replace(/[^A-Za-z0-9]+/g, '_')}__${uniqueId}__${primaryCategory.replace(/[^A-Za-z0-9]+/g, '_')}.pdf`,
+    docName
+  )
   const execStatus = toText(autoRoute.execution_status, 'ROUTED')
   const isException = execStatus.startsWith('EXCEPTION')
   const similarity = (data.similarity_check && typeof data.similarity_check === 'object') ? data.similarity_check : {}
@@ -364,12 +376,24 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
 
         <div className="srtMetaChipsRow">
           <div className="srtMetaChip">
+            <span className="srtMetaChipKey">Owner / Organization</span>
+            <span className="srtMetaChipVal" style={{ color: '#38bdf8', fontWeight: 700 }}>{ownerOrg}</span>
+          </div>
+          <div className="srtMetaChip">
+            <span className="srtMetaChipKey">Unique Entity ID</span>
+            <span className="srtMetaChipVal mono" style={{ color: '#6ee7b7', fontWeight: 700 }}>{uniqueId}</span>
+          </div>
+          <div className="srtMetaChip">
             <span className="srtMetaChipKey">Domain</span>
             <span className="srtMetaChipVal">{domain || 'Not verified'}</span>
           </div>
           <div className="srtMetaChip">
             <span className="srtMetaChipKey">Sensitivity</span>
             <span className={`srtMetaChipVal sensText-${sensLevel.toLowerCase()}`}>{sensLevel}</span>
+          </div>
+          <div className="srtMetaChip secondaryGroup">
+            <span className="srtMetaChipKey">Sorted Enterprise File ID</span>
+            <code className="srtGovCode" style={{ fontSize: '11.5px' }}>{standardizedFilename}</code>
           </div>
           {distinctSecondary.length > 0 && (
             <div className="srtMetaChip secondaryGroup">
@@ -584,6 +608,18 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
           <section className="srtSection" id="srt-governance-section">
             <h3 className="srtHeading">Repository &amp; Governance</h3>
             <div className="srtGovGrid">
+              <div className="srtGovItem">
+                <span className="srtGovKey">Document Owner / Organization</span>
+                <span className="srtGovVal" style={{ color: '#38bdf8', fontWeight: 700 }}>{ownerOrg}</span>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Unique Entity / Account ID</span>
+                <span className="srtGovVal mono" style={{ color: '#6ee7b7', fontWeight: 700 }}>{uniqueId}</span>
+              </div>
+              <div className="srtGovItem full">
+                <span className="srtGovKey">Standardized Sorted File Name</span>
+                <code className="srtGovCode">{standardizedFilename}</code>
+              </div>
               <div className="srtGovItem">
                 <span className="srtGovKey">Destination Repository</span>
                 <span className="srtGovVal">{toText(autoRoute.destination_repository) || 'Not verified'}</span>

@@ -215,10 +215,11 @@ def lambda_handler(event, context):
             files_list = [parsed['file']]
 
         batch_name = parsed.get('fields', {}).get('batch_name')
+        target_storage_location = parsed.get('fields', {}).get('target_storage_location') or ''
         if not files_list:
             return _json_response(400, {'detail': 'No files uploaded for batch classification.'})
 
-        res = batch_service.create_batch(files_list, batch_name=batch_name)
+        res = batch_service.create_batch(files_list, batch_name=batch_name, target_storage_location=target_storage_location)
         return _json_response(200, res)
 
     # Batch Create From Local Folder / File Path Location
@@ -230,13 +231,29 @@ def lambda_handler(event, context):
             data = {}
         folder_path = data.get('path') or data.get('folder_path') or ''
         batch_name = data.get('batch_name')
+        target_storage_location = data.get('target_storage_location') or ''
         try:
-            res = batch_service.create_batch_from_path(folder_path, batch_name=batch_name)
+            res = batch_service.create_batch_from_path(folder_path, batch_name=batch_name, target_storage_location=target_storage_location)
             return _json_response(200, res)
         except (ValueError, FileNotFoundError, IOError) as e:
             return _json_response(400, {'detail': str(e)})
         except Exception as e:
             return _json_response(500, {'detail': f'Failed to process path location: {e}'})
+
+    # Batch Update Target Storage Location for Similar Documents
+    if raw_path.startswith('/api/batch/') and raw_path.endswith('/store-location') and method == 'POST':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        body_raw = event.get('body') or '{}'
+        try:
+            data = json.loads(body_raw) if isinstance(body_raw, str) else {}
+        except Exception:
+            data = {}
+        target_loc = data.get('target_storage_location') or ''
+        res = batch_service.update_batch_storage_location(batch_id, target_loc)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
 
     # Batch Export CSV
     if raw_path.startswith('/api/batch/') and raw_path.endswith('/export') and method == 'GET':

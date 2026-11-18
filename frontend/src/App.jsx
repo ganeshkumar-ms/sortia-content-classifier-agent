@@ -178,6 +178,44 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeViewerDoc, setActiveViewerDoc] = useState(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [activeBulkBatch, setActiveBulkBatch] = useState(null)
+
+  function handleBatchSaved(batchObj) {
+    if (!batchObj || !batchObj.batch_id) return
+    const sessId = `bulk_${batchObj.batch_id}`
+    const batchTitle = `Bulk · ${batchObj.batch_name || batchObj.batch_id}`
+    const locTxt = batchObj.target_storage_location ? ` · Location: ${batchObj.target_storage_location}` : ''
+    const summaryText = `Bulk classification (${batchObj.total_files || 0} files, ${batchObj.classified_count || 0} routed${locTxt})`
+    const synthMessages = [
+      {
+        id: `${sessId}_u`,
+        role: 'user',
+        content: `Bulk classification batch: ${batchObj.batch_name || batchObj.batch_id}${locTxt}`,
+      },
+      {
+        id: `${sessId}_a`,
+        role: 'ai',
+        data: {
+          type: 'chat',
+          message: `${summaryText}. Click "Bulk Classify" or select this session in the sidebar to inspect all grouped similar documents, owner/organization names, and unique entity IDs.`,
+        },
+      },
+    ]
+    setSessions(prev => {
+      const existing = prev.find(s => s.id === sessId)
+      const updated = {
+        id: sessId,
+        title: existing?.titleLocked ? existing.title : batchTitle,
+        titleLocked: existing?.titleLocked || true,
+        isBulkBatch: true,
+        batchData: batchObj,
+        timestamp: formatTimestamp(new Date()),
+        updatedAt: Date.now(),
+        messages: synthMessages,
+      }
+      return [updated, ...prev.filter(s => s.id !== sessId)]
+    })
+  }
 
   const fileInputRef = useRef(null)
   const homeFileInputRef = useRef(null)
@@ -254,6 +292,10 @@ export default function App() {
     clearSelectedFile()
     setActiveViewerDoc(null)
     setView('chat')
+    if (sess.isBulkBatch && sess.batchData) {
+      setActiveBulkBatch(sess.batchData)
+      setShowBulkModal(true)
+    }
   }
 
   function handleRenameSession(id, newTitle) {
@@ -813,9 +855,13 @@ export default function App() {
 
       {/* BULK FILE CLASSIFICATION MODAL WORKSPACE */}
       {showBulkModal && (
-        <div className="srtModalBackdrop" onClick={() => setShowBulkModal(false)}>
+        <div className="srtModalBackdrop" onClick={() => { setShowBulkModal(false); setActiveBulkBatch(null) }}>
           <div className="srtModalCard bulkModalCard" onClick={e => e.stopPropagation()}>
-            <BulkClassificationWorkspace onClose={() => setShowBulkModal(false)} />
+            <BulkClassificationWorkspace
+              initialBatch={activeBulkBatch}
+              onBatchSaved={handleBatchSaved}
+              onClose={() => { setShowBulkModal(false); setActiveBulkBatch(null) }}
+            />
           </div>
         </div>
       )}

@@ -33,13 +33,16 @@ export async function classifyContent({ file, text, conversationHistory = [] }) 
   return data
 }
 
-export async function createBatch({ files = [], batchName = '' }) {
+export async function createBatch({ files = [], batchName = '', targetStorageLocation = '' }) {
   const formData = new FormData()
   for (const f of files) {
     formData.append('files', f)
   }
   if (batchName) {
     formData.append('batch_name', batchName)
+  }
+  if (targetStorageLocation) {
+    formData.append('target_storage_location', targetStorageLocation)
   }
 
   const res = await fetch(`${API_BASE}/api/batch/create`, {
@@ -59,11 +62,15 @@ export async function createBatch({ files = [], batchName = '' }) {
   return data
 }
 
-export async function createBatchFromPath({ folderPath = '', batchName = '' }) {
+export async function createBatchFromPath({ folderPath = '', batchName = '', targetStorageLocation = '' }) {
   const res = await fetch(`${API_BASE}/api/batch/create-from-path`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: folderPath, batch_name: batchName })
+    body: JSON.stringify({
+      path: folderPath,
+      batch_name: batchName,
+      target_storage_location: targetStorageLocation,
+    })
   })
   const textResp = await res.text()
   let data
@@ -76,6 +83,16 @@ export async function createBatchFromPath({ folderPath = '', batchName = '' }) {
     throw new Error(data.detail || data.message || `Failed to scan folder location (${res.status})`)
   }
   return data
+}
+
+export async function updateBatchStorageLocation(batchId, targetStorageLocation) {
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}/store-location`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_storage_location: targetStorageLocation })
+  })
+  if (!res.ok) throw new Error(`Failed to update storage location (${res.status})`)
+  return res.json()
 }
 
 export async function getBatch(batchId) {

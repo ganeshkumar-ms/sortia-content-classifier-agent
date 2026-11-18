@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { createBatch, createBatchFromPath, getBatch, retryBatch, getBatchExportUrl } from '../services/api.js'
+import {
+  createBatch,
+  createBatchFromPath,
+  getBatch,
+  getBatches,
+  retryBatch,
+  updateBatchStorageLocation,
+  getBatchExportUrl,
+} from '../services/api.js'
 import SortiaResultCard from './SortiaResultCard.jsx'
+
+const BULK_HISTORY_KEY = 'sortia_bulk_batches_v1'
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B'
@@ -10,21 +20,134 @@ function formatBytes(bytes) {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-export default function BulkClassificationWorkspace({ onSelectDocForViewer, onClose }) {
+function loadSavedBulkBatches() {
+  try {
+    const raw = localStorage.getItem(BULK_HISTORY_KEY)
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list.filter(b => b && b.batch_id) : []
+  } catch {
+    return []
+  }
+}
+
+function persistBulkBatches(list) {
+  try {
+    localStorage.setItem(BULK_HISTORY_KEY, JSON.stringify((list || []).slice(0, 40)))
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function buildClientSimilarGroups(batch) {
+  if (!batch) return []
+  if (Array.isArray(batch.similar_document_groups) && batch.similar_document_groups.length > 0) {
+    return batch.similar_document_groups
+  }
+  const baseLoc = (batch.target_storage_location || '/Enterprise_Vault').replace(/[\\/]+$/, '')
+  const sep = baseLoc.includes('\\') && !baseLoc.includes('/') ? '\\' : '/'
+  const map = {}
+  for (const f of batch.files || []) {
+    if (f.status === 'FAILED') continue
+    const cat = f.primary_category || 'Unclassified'
+    const catSlug = cat.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'Classified'
+    const folder = f.similar_group_folder || `${baseLoc}${sep}${catSlug}${sep}`
+    if (!map[cat]) {
+      map[cat] = { category: cat, target_folder: folder, count: 0, documents: [] }
+    }
+    const ownerOrg = f.owner_organization || f.result?.owner_organization || f.result?.extracted_metadata?.owner_organization || 'Enterprise Entity'
+    const uniqueId = f.unique_entity_id || f.result?.unique_entity_id || f.result?.extracted_metadata?.unique_entity_id || f.doc_id
+    const stdName = f.standardized_filename || f.result?.standardized_filename || `${ownerOrg.replace(/[^A-Za-z0-9]+/g, '_')}__${uniqueId}__${catSlug}_${f.filename}`
+    map[cat].count += 1
+    map[cat].documents.append
+      ? map[cat].documents.append({ doc_id: f.doc_id, original_filename: f.filename, standardized_filename: stdName, owner_organization: ownerOrg, unique_entity_id: uniqueId })
+      : map[cat].documents.push({
+          doc_id: f.doc_id,
+          original_filename: f.filename,
+          standardized_filename: stdName,
+          owner_organization: ownerOrg,
+          unique_entity_id: uniqueId,
+          destination_path: f.destination_path || `${folder}${stdName}`,
+        })
+  }
+  return Object.values(map).sort((a, b) => b.count - a.count)
+}
+
+export default function BulkClassificationWorkspace({
+  onSelectDocForViewer,
+  onClose,
+  initialBatch = null,
+  onBatchSaved,
+}) {
   const [filesToUpload, setFilesToUpload] = useState([])
   const [batchName, setBatchName] = useState('')
+  const [targetStorageLocation, setTargetStorageLocation] = useState('')
+  const [editLocationDraft, setEditLocationDraft] = useState('')
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false)
   const [inputLocationPath, setInputLocationPath] = useState('')
   const [isScanningPath, setIsScanningPath] = useState(false)
   const [ingestMode, setIngestMode] = useState('upload') // 'upload' | 'location'
-  const [currentBatch, setCurrentBatch] = useState(null)
+  const [currentBatch, setCurrentBatch] = useState(initialBatch)
+  const [bulkHistory, setBulkHistory] = useState(loadSavedBulkBatches)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedDocResult, setSelectedDocResult] = useState(null)
+
   const fileInputRef = useRef(null)
   const folderInputRef = useRef(null)
+  const targetLocationInputRef = useRef(null)
   const pollIntervalRef = useRef(null)
+
+  // Save/merge a batch into persistent history and notify parent App
+  const upsertBatchInHistory = (batchObj) => {
+    if (!batchObj || !batchObj.batch_id) return
+    setBulkHistory(prev => {
+      const next = [batchObj, ...prev.filter(b => b.batch_id !== batchObj.batch_id)]
+      persistBulkBatches(next)
+      return next
+    })
+    if (onBatchSaved) {
+      onBatchSaved(batchObj)
+    }
+  }
+
+  useEffect(() => {
+    if (initialBatch && initialBatch.batch_id) {
+      setCurrentBatch(initialBatch)
+      setEditLocationDraft(initialBatch.target_storage_location || '')
+    }
+  }, [initialBatch?.batch_id])
+
+  // Sync saved batches with backend /api/batches on mount
+  useEffect(() => {
+    let active = true
+    getBatches()
+      .then((res) => {
+        if (!active || !res?.batches) return
+        setBulkHistory(prev => {
+          const byId = new Map()
+          for (const b of prev) {
+            if (b?.batch_id) byId.set(b.batch_id, b)
+          }
+          for (const b of res.batches) {
+            if (!b?.batch_id) continue
+            const existing = byId.get(b.batch_id)
+            // Keep whichever has fuller file results
+            if (!existing || (b.files && b.files.length >= (existing.files?.length || 0))) {
+              byId.set(b.batch_id, { ...existing, ...b })
+            }
+          }
+          const merged = Array.from(byId.values()).sort((a, b) =>
+            String(b.created_at || '').localeCompare(String(a.created_at || ''))
+          )
+          persistBulkBatches(merged)
+          return merged
+        })
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
 
   // Drag & drop handlers
   const [isDragging, setIsDragging] = useState(false)
@@ -70,17 +193,37 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
     setFilesToUpload([])
   }
 
+  const deleteBatchFromHistory = (batchId, e) => {
+    if (e) e.stopPropagation()
+    setBulkHistory(prev => {
+      const next = prev.filter(b => b.batch_id !== batchId)
+      persistBulkBatches(next)
+      return next
+    })
+    if (currentBatch?.batch_id === batchId) {
+      setCurrentBatch(null)
+    }
+  }
+
   // Start Batch from uploaded files
   const handleStartBatch = async () => {
     if (filesToUpload.length === 0) return
+    if (!targetStorageLocation.trim()) {
+      setError('Please enter the Target Storage Location where SORTIA should group and store all similar documents.')
+      targetLocationInputRef.current?.focus()
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
       const resp = await createBatch({
         files: filesToUpload,
-        batchName: batchName || `Batch ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+        batchName: batchName || `Batch ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+        targetStorageLocation: targetStorageLocation.trim(),
       })
       setCurrentBatch(resp)
+      setEditLocationDraft(resp.target_storage_location || targetStorageLocation.trim())
+      upsertBatchInHistory(resp)
       setFilesToUpload([])
       setBatchName('')
     } catch (err) {
@@ -93,7 +236,12 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
   // Start Batch from direct file or folder location path
   const handleStartPathBatch = async () => {
     if (!inputLocationPath.trim()) {
-      setError('Please enter a folder path or file location.')
+      setError('Please enter a source folder path or file location to scan.')
+      return
+    }
+    if (!targetStorageLocation.trim()) {
+      setError('Please enter the Target Storage Location where SORTIA should group and store all similar documents.')
+      targetLocationInputRef.current?.focus()
       return
     }
     setIsScanningPath(true)
@@ -101,15 +249,53 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
     try {
       const resp = await createBatchFromPath({
         folderPath: inputLocationPath.trim(),
-        batchName: batchName || `Batch (${inputLocationPath.trim().split(/[\\/]/).pop()})`
+        batchName: batchName || `Batch (${inputLocationPath.trim().split(/[\\/]/).pop()})`,
+        targetStorageLocation: targetStorageLocation.trim(),
       })
       setCurrentBatch(resp)
+      setEditLocationDraft(resp.target_storage_location || targetStorageLocation.trim())
+      upsertBatchInHistory(resp)
       setInputLocationPath('')
       setBatchName('')
     } catch (err) {
       setError(err.message || 'Failed to scan and ingest folder location.')
     } finally {
       setIsScanningPath(false)
+    }
+  }
+
+  const handleApplyNewStorageLocation = async () => {
+    if (!currentBatch?.batch_id || !editLocationDraft.trim()) return
+    setIsUpdatingLocation(true)
+    setError(null)
+    try {
+      const updated = await updateBatchStorageLocation(currentBatch.batch_id, editLocationDraft.trim())
+      setCurrentBatch(updated)
+      upsertBatchInHistory(updated)
+    } catch (err) {
+      // Fallback client-side update if batch was restored from localStorage after Lambda cold start
+      const cleanLoc = editLocationDraft.trim().replace(/[\\/]+$/, '')
+      const sep = cleanLoc.includes('\\') && !cleanLoc.includes('/') ? '\\' : '/'
+      const updatedFiles = (currentBatch.files || []).map(f => {
+        const catSlug = (f.primary_category || 'Classified').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'Classified'
+        const stdName = f.standardized_filename || f.filename
+        const groupFolder = `${cleanLoc}${sep}${catSlug}${sep}`
+        return {
+          ...f,
+          similar_group_folder: groupFolder,
+          destination_path: `${groupFolder}${stdName}`,
+        }
+      })
+      const localUpdated = {
+        ...currentBatch,
+        target_storage_location: cleanLoc,
+        files: updatedFiles,
+      }
+      localUpdated.similar_document_groups = buildClientSimilarGroups(localUpdated)
+      setCurrentBatch(localUpdated)
+      upsertBatchInHistory(localUpdated)
+    } finally {
+      setIsUpdatingLocation(false)
     }
   }
 
@@ -124,6 +310,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
       try {
         const updated = await getBatch(currentBatch.batch_id)
         setCurrentBatch(updated)
+        upsertBatchInHistory(updated)
         if (updated.status !== 'PROCESSING') {
           clearInterval(pollIntervalRef.current)
         }
@@ -143,24 +330,53 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
     try {
       const updated = await retryBatch(currentBatch.batch_id)
       setCurrentBatch(updated)
+      upsertBatchInHistory(updated)
     } catch (e) {
       setError(e.message || 'Retry failed.')
     }
   }
 
-  // Filtered files list in current batch
+  const handleOpenSavedBatch = async (b) => {
+    setError(null)
+    if (b.files && b.files.length > 0) {
+      setCurrentBatch(b)
+      setEditLocationDraft(b.target_storage_location || '')
+      return
+    }
+    try {
+      const full = await getBatch(b.batch_id)
+      setCurrentBatch(full)
+      setEditLocationDraft(full.target_storage_location || '')
+      upsertBatchInHistory(full)
+    } catch {
+      setCurrentBatch(b)
+      setEditLocationDraft(b.target_storage_location || '')
+    }
+  }
+
+  // Filtered files list in current batch (searches filename, owner/organization name, unique ID, and category!)
   const batchFiles = (currentBatch?.files || []).filter(f => {
     const q = searchQuery.toLowerCase().trim()
-    const matchesQ = !q || (f.filename || '').toLowerCase().includes(q) || (f.primary_category || '').toLowerCase().includes(q)
+    const ownerOrg = (f.owner_organization || f.result?.owner_organization || '').toLowerCase()
+    const uniqueId = (f.unique_entity_id || f.result?.unique_entity_id || '').toLowerCase()
+    const stdName = (f.standardized_filename || f.result?.standardized_filename || '').toLowerCase()
+    const matchesQ =
+      !q ||
+      (f.filename || '').toLowerCase().includes(q) ||
+      (f.primary_category || '').toLowerCase().includes(q) ||
+      ownerOrg.includes(q) ||
+      uniqueId.includes(q) ||
+      stdName.includes(q)
     const matchesStatus = statusFilter === 'ALL' || f.status === statusFilter
     return matchesQ && matchesStatus
   })
 
   const catDist = currentBatch?.category_distribution || {}
+  const similarGroups = buildClientSimilarGroups(currentBatch)
 
   return (
     <div className="srtBulkWorkspace">
-      {/* 0. WORKSPACE HEADER WITH SINGLE CLOSE BUTTON */}
+      {/* 0. WORKSPACE HEADER */}
       {onClose && (
         <div className="srtBulkTopBar">
           <div className="srtBulkTopTitle">
@@ -170,8 +386,8 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
               </svg>
             </div>
             <div>
-              <span className="srtBulkTopHeading">BULK FILE CLASSIFICATION WORKSPACE</span>
-              <span className="srtBulkTopSub">Automated parallel batch routing, directory scanning, and enterprise taxonomy tagging</span>
+              <span className="srtBulkTopHeading">BULK FILE CLASSIFICATION &amp; SIMILAR-DOCUMENT ROUTING</span>
+              <span className="srtBulkTopSub">Identifies document type, owner/organization &amp; unique entity ID, and groups all similar documents into your target location</span>
             </div>
           </div>
           <button type="button" className="srtBulkCloseBtn" onClick={onClose} aria-label="Close modal">
@@ -186,14 +402,40 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
           <div className="srtBulkCardHead">
             <div>
               <h3>Enterprise Ingestion &amp; Batch Intake</h3>
-              <p>Upload files or point to a local directory location to classify in parallel.</p>
+              <p>Specify where similar documents should be stored, then upload files or scan a folder to classify in parallel.</p>
             </div>
             <div className="srtBulkLimitsBadge">
               <span>PDF · DOCX · TXT · XLSX · PPTX · ZIP · IMAGES</span>
             </div>
           </div>
 
-          {/* INGESTION MODE SELECTOR TABS */}
+          {/* STEP 1: ASK USER FOR TARGET STORAGE LOCATION FOR SIMILAR DOCUMENTS */}
+          <div className="srtPathInputCard" style={{ marginBottom: '16px', border: '1px solid rgba(56, 189, 248, 0.4)', background: 'rgba(7, 140, 255, 0.07)' }}>
+            <div className="srtPathHeader">
+              <strong style={{ color: '#7dd3fc' }}>1. Target Storage Location for Grouping Similar Documents (Required):</strong>
+              <p>Enter the folder path where SORTIA should group and store all similar documents together (e.g. by category &amp; organization/unique ID).</p>
+            </div>
+            <div className="srtPathInputRow">
+              <div className="srtPathFieldWrap">
+                <svg className="srtPathIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                <input
+                  ref={targetLocationInputRef}
+                  type="text"
+                  className="srtPathInput"
+                  placeholder="Enter target location to store similar docs (e.g. C:\Enterprise_Vault\Sorted_Docs or /Archive/2026_Classified)"
+                  value={targetStorageLocation}
+                  onChange={e => {
+                    setTargetStorageLocation(e.target.value)
+                    if (error) setError(null)
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 2: INGESTION MODE SELECTOR TABS */}
           <div className="srtBulkTabGroup">
             <button
               type="button"
@@ -215,7 +457,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
-              <span>Direct File / Folder Location</span>
+              <span>Direct Source File / Folder Location</span>
             </button>
           </div>
 
@@ -283,12 +525,12 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
             </div>
           )}
 
-          {/* MODE B: DIRECT LOCAL FILE / FOLDER LOCATION */}
+          {/* MODE B: DIRECT LOCAL SOURCE FILE / FOLDER LOCATION (No "Current Agent Workspace" default button) */}
           {ingestMode === 'location' && (
             <div className="srtPathInputCard">
               <div className="srtPathHeader">
-                <strong>Enter Local Directory or Network File Location:</strong>
-                <p>Specify a local folder path on your system. SORTIA will automatically crawl and classify all supported documents.</p>
+                <strong>Enter Source Directory or Network File Location to Scan:</strong>
+                <p>Specify a local folder path on your system. SORTIA will crawl, classify, and group all similar documents into your target storage location above.</p>
               </div>
               <div className="srtPathInputRow">
                 <div className="srtPathFieldWrap">
@@ -298,7 +540,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                   <input
                     type="text"
                     className="srtPathInput"
-                    placeholder="e.g. C:\Users\Documents\Invoices or D:\Archive\Contracts"
+                    placeholder="e.g. C:\Users\Documents\Incoming_Files or D:\Archive\Unsorted_Batch"
                     value={inputLocationPath}
                     onChange={e => setInputLocationPath(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleStartPathBatch() }}
@@ -312,10 +554,6 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                 >
                   {isScanningPath ? 'Scanning Location...' : 'Scan & Classify Location ↗'}
                 </button>
-              </div>
-              <div className="srtPathSuggestions">
-                <span>Quick Location Shortcuts:</span>
-                <button type="button" onClick={() => setInputLocationPath('c:\\Users\\ELCOT\\OneDrive\\Desktop\\Agent')}>Current Agent Workspace</button>
               </div>
             </div>
           )}
@@ -346,7 +584,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
               <div className="srtStartRow">
                 <input
                   type="text"
-                  placeholder="Optional Batch Name (e.g. Q4 Policy Archive)"
+                  placeholder="Optional Batch Name (e.g. Q4 Commercial Lending Batch)"
                   className="srtBatchNameInput"
                   value={batchName}
                   onChange={e => setBatchName(e.target.value)}
@@ -357,8 +595,64 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                   onClick={handleStartBatch}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating Batch...' : `Start Batch Classification (${filesToUpload.length} Files)`}
+                  {isLoading ? 'Classifying & Grouping Similar Docs...' : `Start Batch Classification (${filesToUpload.length} Files)`}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* SAVED BULK CLASSIFICATION HISTORY */}
+          {bulkHistory.length > 0 && (
+            <div className="srtStagedFilesBox" style={{ marginTop: '20px' }}>
+              <div className="srtStagedHead">
+                <strong style={{ color: '#e2e8f0', fontSize: '13.5px' }}>
+                  Saved Bulk Classification History ({bulkHistory.length})
+                </strong>
+              </div>
+              <div className="srtStagedList" style={{ maxHeight: '240px' }}>
+                {bulkHistory.map((b) => (
+                  <div
+                    key={b.batch_id}
+                    className="srtStagedItem"
+                    style={{ cursor: 'pointer', padding: '10px 12px', justifyContent: 'space-between' }}
+                    onClick={() => handleOpenSavedBatch(b)}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong style={{ color: '#38bdf8', fontSize: '13px' }}>{b.batch_name || b.batch_id}</strong>
+                        <code style={{ fontSize: '11px', color: '#94a3b8' }}>{b.batch_id}</code>
+                        <span className={`statusTag ${(b.status || 'completed').toLowerCase()}`} style={{ fontSize: '10px', padding: '2px 7px' }}>
+                          {b.status || 'COMPLETED'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+                        {b.total_files || (b.files?.length || 0)} files · {b.classified_count ?? (b.files?.length || 0)} routed
+                        {b.target_storage_location ? ` · Location: ${b.target_storage_location}` : ''}
+                        {b.created_at ? ` · ${b.created_at}` : ''}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="srtViewBtn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenSavedBatch(b)
+                        }}
+                      >
+                        Open Batch ↗
+                      </button>
+                      <button
+                        type="button"
+                        className="srtStagedDel"
+                        title="Delete saved batch"
+                        onClick={(e) => deleteBatchFromHistory(b.batch_id, e)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -371,7 +665,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
           {/* Top Banner */}
           <div className="srtBatchHeadBanner">
             <div className="srtBatchMeta">
-              <span className={`srtBatchStatusPill ${currentBatch.status.toLowerCase()}`}>
+              <span className={`srtBatchStatusPill ${(currentBatch.status || 'completed').toLowerCase()}`}>
                 <span className="dot" />
                 {currentBatch.status}
               </span>
@@ -389,7 +683,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                <span>Export CSV</span>
+                <span>Export CSV (With Owner &amp; Unique ID)</span>
               </a>
               {currentBatch.failed_count > 0 && (
                 <button type="button" className="srtToolBtn warning" onClick={handleRetryFailed}>
@@ -401,8 +695,40 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                 className="srtToolBtn primary"
                 onClick={() => setCurrentBatch(null)}
               >
-                + New Batch
+                ← All Batches / + New Batch
               </button>
+            </div>
+          </div>
+
+          {/* USER-SPECIFIED TARGET STORAGE LOCATION BAR */}
+          <div className="srtPathInputCard" style={{ marginBottom: '14px', padding: '12px 16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div>
+                <strong style={{ color: '#7dd3fc', fontSize: '12.5px', display: 'block' }}>
+                  TARGET LOCATION FOR STORING SIMILAR DOCUMENTS:
+                </strong>
+                <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                  All similar documents are grouped together by category under this location and named with their Owner/Organization &amp; Unique ID.
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 340px', maxWidth: '540px' }}>
+                <input
+                  type="text"
+                  className="srtPathInput"
+                  placeholder="Enter target location path (e.g. C:\Enterprise_Vault\Sorted_Docs)"
+                  value={editLocationDraft}
+                  onChange={e => setEditLocationDraft(e.target.value)}
+                  style={{ padding: '7px 12px', fontSize: '12.5px' }}
+                />
+                <button
+                  type="button"
+                  className="srtToolBtn primary"
+                  onClick={handleApplyNewStorageLocation}
+                  disabled={isUpdatingLocation || !editLocationDraft.trim()}
+                >
+                  {isUpdatingLocation ? 'Updating...' : 'Apply Location'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -416,36 +742,69 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
             <div className="srtBatchKpi">
               <span className="kpiLabel">AUTONOMOUSLY ROUTED</span>
               <strong className="kpiVal green">{currentBatch.classified_count}</strong>
-              <span className="kpiSub">Destination verified</span>
+              <span className="kpiSub">Grouped into target location</span>
             </div>
             <div className="srtBatchKpi">
-              <span className="kpiLabel">EXCEPTION QUEUE</span>
-              <strong className="kpiVal amber">{currentBatch.exceptions_count}</strong>
-              <span className="kpiSub">Ambiguous or restricted</span>
+              <span className="kpiLabel">SIMILAR DOC FOLDERS</span>
+              <strong className="kpiVal" style={{ color: '#38bdf8' }}>{similarGroups.length}</strong>
+              <span className="kpiSub">Category subfolders created</span>
             </div>
             <div className="srtBatchKpi">
-              <span className="kpiLabel">FAILED</span>
-              <strong className="kpiVal red">{currentBatch.failed_count}</strong>
-              <span className="kpiSub">Validation/read error</span>
+              <span className="kpiLabel">EXCEPTIONS / FAILED</span>
+              <strong className="kpiVal amber">{(currentBatch.exceptions_count || 0) + (currentBatch.failed_count || 0)}</strong>
+              <span className="kpiSub">Ambiguous or validation error</span>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="srtBatchProgressWrap">
-            <div className="srtBatchProgressBar">
-              <div className="srtBatchProgressFill" style={{ width: `${currentBatch.progress_pct}%` }} />
-            </div>
-          </div>
-
-          {/* Category Distribution Chips */}
-          {Object.keys(catDist).length > 0 && (
-            <div className="srtBatchDistSection">
-              <span className="distLabel">BATCH CLASSIFICATION DISTRIBUTION:</span>
-              <div className="distChips">
-                {Object.entries(catDist).map(([cat, count]) => (
-                  <span key={cat} className="distChip">
-                    <strong>{cat}</strong> <span>({count})</span>
-                  </span>
+          {/* GROUPED SIMILAR DOCUMENTS BY TARGET LOCATION */}
+          {similarGroups.length > 0 && (
+            <div className="srtBatchDistSection" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+              <span className="distLabel">
+                SIMILAR DOCUMENTS GROUPED IN TARGET LOCATION ({currentBatch.target_storage_location || '/Enterprise_Vault'}):
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '10px' }}>
+                {similarGroups.map((grp) => (
+                  <div
+                    key={grp.category}
+                    style={{
+                      background: 'rgba(6, 22, 39, 0.85)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <strong style={{ color: '#38bdf8', fontSize: '13px' }}>{grp.category}</strong>
+                      <span className="distChip" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                        {grp.count} similar doc{grp.count > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#6ee7b7', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: '8px' }}>
+                      📁 {grp.target_folder}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {(grp.documents || []).map((d, di) => (
+                        <div
+                          key={d.doc_id || di}
+                          style={{
+                            fontSize: '11.5px',
+                            padding: '5px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(15, 23, 42, 0.7)',
+                            border: '1px solid rgba(148, 163, 184, 0.16)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+                            <strong style={{ color: '#f1f5f9' }}>{d.owner_organization}</strong>
+                            <code style={{ color: '#38bdf8', fontSize: '11px' }}>ID: {d.unique_entity_id}</code>
+                          </div>
+                          <div style={{ color: '#94a3b8', fontSize: '11px', wordBreak: 'break-all', marginTop: '2px' }}>
+                            → {d.standardized_filename}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -455,7 +814,7 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
           <div className="srtTableToolbar">
             <input
               type="text"
-              placeholder="Search by file name or category..."
+              placeholder="Search by organization/owner name, unique ID (e.g. CL-2024-00871), file name, or category..."
               className="srtTableSearchInput"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -474,17 +833,17 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
             </div>
           </div>
 
-          {/* File-Level Results Table */}
+          {/* File-Level Results Table with OWNER / ORGANIZATION & UNIQUE ID */}
           <div className="srtTableWrap">
             <table className="srtBatchTable">
               <thead>
                 <tr>
-                  <th>DOCUMENT</th>
+                  <th>DOCUMENT &amp; SORTED FILE ID</th>
+                  <th>OWNER / ORGANIZATION &amp; UNIQUE ID</th>
                   <th>CLASSIFICATION</th>
                   <th>CONFIDENCE</th>
-                  <th>AMBIGUITY</th>
                   <th>SECURITY</th>
-                  <th>DESTINATION</th>
+                  <th>TARGET SIMILAR-DOCS LOCATION</th>
                   <th>STATUS</th>
                   <th>ACTIONS</th>
                 </tr>
@@ -495,54 +854,61 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
                     <td colSpan="8" className="srtTableEmpty">No files matching current criteria.</td>
                   </tr>
                 ) : (
-                  batchFiles.map((file) => (
-                    <tr key={file.doc_id}>
-                      <td className="fileCell">
-                        <strong>{file.filename}</strong>
-                        {file.is_duplicate && <span className="dupBadge">Duplicate</span>}
-                      </td>
-                      <td>
-                        <span className="catCell">{file.primary_category || '—'}</span>
-                        {file.subtype && <small className="subCell">{file.subtype}</small>}
-                      </td>
-                      <td>
-                        {file.confidence ? (
-                          <strong className="confCell">{file.confidence}%</strong>
-                        ) : '—'}
-                      </td>
-                      <td>
-                        <span className={`ambBadge ${(file.ambiguity_level || 'low').toLowerCase()}`}>
-                          {file.ambiguity_level || 'Low'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`sensCell ${(file.sensitivity || 'internal').toLowerCase()}`}>
-                          {file.sensitivity || 'Internal'}
-                        </span>
-                      </td>
-                      <td className="destCell">
-                        <code>{file.destination_path || '—'}</code>
-                      </td>
-                      <td>
-                        <span className={`statusTag ${(file.status || 'pending').toLowerCase()}`}>
-                          {file.status === 'ROUTED' ? 'ROUTED' : file.status === 'EXCEPTION_QUEUE' ? 'EXCEPTION' : file.status}
-                        </span>
-                      </td>
-                      <td>
-                        {file.result ? (
-                          <button
-                            type="button"
-                            className="srtViewBtn"
-                            onClick={() => setSelectedDocResult(file.result)}
-                          >
-                            Inspect ↗
-                          </button>
-                        ) : (
-                          <span className="noAct">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  batchFiles.map((file) => {
+                    const ownerOrg = file.owner_organization || file.result?.owner_organization || file.result?.extracted_metadata?.owner_organization || 'Enterprise Entity'
+                    const uniqueId = file.unique_entity_id || file.result?.unique_entity_id || file.result?.extracted_metadata?.unique_entity_id || file.doc_id
+                    const stdName = file.standardized_filename || file.result?.standardized_filename || file.filename
+                    return (
+                      <tr key={file.doc_id}>
+                        <td className="fileCell">
+                          <strong>{file.filename}</strong>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px', wordBreak: 'break-all' }}>
+                            Sorted ID: {stdName}
+                          </div>
+                          {file.is_duplicate && <span className="dupBadge">Duplicate</span>}
+                        </td>
+                        <td>
+                          <strong style={{ color: '#38bdf8', display: 'block', fontSize: '12.5px' }}>{ownerOrg}</strong>
+                          <code style={{ color: '#6ee7b7', fontSize: '11px' }}>ID: {uniqueId}</code>
+                        </td>
+                        <td>
+                          <span className="catCell">{file.primary_category || '—'}</span>
+                          {file.subtype && <small className="subCell">{file.subtype}</small>}
+                        </td>
+                        <td>
+                          {file.confidence ? (
+                            <strong className="confCell">{file.confidence}%</strong>
+                          ) : '—'}
+                        </td>
+                        <td>
+                          <span className={`sensCell ${(file.sensitivity || 'internal').toLowerCase()}`}>
+                            {file.sensitivity || 'Internal'}
+                          </span>
+                        </td>
+                        <td className="destCell">
+                          <code>{file.destination_path || '—'}</code>
+                        </td>
+                        <td>
+                          <span className={`statusTag ${(file.status || 'pending').toLowerCase()}`}>
+                            {file.status === 'ROUTED' ? 'ROUTED' : file.status === 'EXCEPTION_QUEUE' ? 'EXCEPTION' : file.status}
+                          </span>
+                        </td>
+                        <td>
+                          {file.result ? (
+                            <button
+                              type="button"
+                              className="srtViewBtn"
+                              onClick={() => setSelectedDocResult(file.result)}
+                            >
+                              Inspect ↗
+                            </button>
+                          ) : (
+                            <span className="noAct">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -550,12 +916,12 @@ export default function BulkClassificationWorkspace({ onSelectDocForViewer, onCl
         </div>
       )}
 
-      {/* 3. SINGLE DOCUMENT DETAIL MODAL (CLEAN RESULT CARD) */}
+      {/* 3. SINGLE DOCUMENT DETAIL MODAL */}
       {selectedDocResult && (
         <div className="srtModalOverlay" onClick={() => setSelectedDocResult(null)}>
           <div className="srtModalContent" onClick={e => e.stopPropagation()}>
             <div className="srtModalHead">
-              <span>DOCUMENT CLASSIFICATION DETAIL</span>
+              <span>DOCUMENT CLASSIFICATION &amp; OWNER IDENTITY DETAIL</span>
               <button
                 type="button"
                 className="srtModalClose"

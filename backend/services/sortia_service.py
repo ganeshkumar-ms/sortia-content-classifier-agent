@@ -615,19 +615,88 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
         })
     result['classification_signals'] = enriched_signals
 
-    # 6. Metadata Extraction
+    # 6. Metadata Extraction + Owner / Organization & Unique Entity ID Extraction
     meta = result.get('extracted_metadata') if isinstance(result.get('extracted_metadata'), dict) else {}
-    dates_found = meta.get('dates') if isinstance(meta.get('dates'), list) and meta.get('dates') else re.findall(r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?|\b\d{4}-\d{2}-\d{2}\b', raw_text)[:5]
-    ids_found = meta.get('identifiers') if isinstance(meta.get('identifiers'), list) and meta.get('identifiers') else re.findall(r'\b[A-Z]{2,6}-\d{2,8}\b', raw_text)[:5]
+    dates_found = meta.get('dates') if isinstance(meta.get('dates'), list) and meta.get('dates') else re.findall(r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?|\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b', raw_text)[:5]
+    ids_found = meta.get('identifiers') if isinstance(meta.get('identifiers'), list) and meta.get('identifiers') else re.findall(r'\b[A-Z]{2,6}-\d{2,4}-\d{3,8}\b|\b[A-Z]{2,6}-\d{3,10}\b', raw_text)[:5]
     ext = Path(file_name).suffix.upper().lstrip('.') if file_name else 'TEXT'
+    file_ext_dot = Path(file_name).suffix.lower() if (file_name and Path(file_name).suffix) else '.pdf'
     inferred_title = Path(file_name).stem.replace('_', ' ').replace('-', ' ').title() if file_name else (first_lines[0][:60] if first_lines else f"{primary} Document")
+
+    # Extract Owner / Organization Name ("Whose document is this?")
+    flat_txt = re.sub(r'\s+', ' ', raw_text)
+    owner_org = ''
+    # 1) Explicit labeled Customer / Client / Borrower / Applicant / Company / Organization / Vendor / Prepared for
+    m_labeled_org = re.search(
+        r'(?:Custom\s*er(?![\s:|]*Communication)|Client|Borrower|Applicant|Organization|Organisation|Company|Vendor|Account\s+Holder|Prepared\s+for|Billed\s+to|Entity\s+Name)[\s:|]+([A-Z][A-Za-z0-9\s&.,()-]{2,55}?(?:Ltd\.?|Limited|Inc\.?|PLC|LLP|Corp\.?|Corporation|Enterprises|Holdings|Group|Farms|Bank|Cooperative|Solutions|Technologies|Partners))(?=\s+Loan\b|\s+Account\b|\s+Reference\b|\s+Date\b|\s+Subject\b|\n|$)',
+        raw_text,
+        re.IGNORECASE,
+    )
+    if m_labeled_org:
+        owner_org = re.sub(r'\s+', ' ', m_labeled_org.group(1)).strip()
+    if not owner_org:
+        m_labeled_simple = re.search(
+            r'(?:Customer\s+Name|Client\s+Name|Borrower\s+Name|Applicant\s+Name|Organization\s+Name|Vendor\s+Name|Account\s+Holder)[\s:|]+([A-Z][A-Za-z0-9\s&.,()-]{2,48})(?=\n|$|\s{2,})',
+            raw_text,
+            re.IGNORECASE,
+        )
+        if m_labeled_simple:
+            owner_org = re.sub(r'\s+', ' ', m_labeled_simple.group(1)).strip()
+    # 2) Explicit company/organization name with corporate suffix in text
+    if not owner_org:
+        m_corp = re.search(
+            r'\b([A-Z][A-Za-z0-9&.-]+(?:\s+[A-Z][A-Za-z0-9&.-]+){0,5}\s+(?:Ltd\.?|Limited|Inc\.?|PLC|LLP|Corp\.?|Corporation|Enterprises|Holdings|Farms|Bank|Cooperative))\b',
+            flat_txt,
+        )
+        if m_corp:
+            owner_org = re.sub(r'\s+', ' ', m_corp.group(1)).strip()
+    # 3) From AI entities or author_or_issuer or filename
+    if not owner_org:
+        ent_list = [str(e).strip() for e in (meta.get('entities') or []) if str(e).strip() and len(str(e).strip()) > 2]
+        if ent_list:
+            owner_org = ent_list[0]
+        elif meta.get('author_or_issuer') and meta.get('author_or_issuer') != 'Not specified in source':
+            owner_org = str(meta['author_or_issuer']).strip()
+        elif file_name:
+            stem_parts = [p for p in re.split(r'[_\-\s]+', Path(file_name).stem) if p and not p.isdigit() and len(p) > 2]
+            owner_org = ' '.join(stem_parts[:3]).title() if stem_parts else 'Enterprise Entity'
+        else:
+            owner_org = 'Enterprise Entity'
+
+    # Extract Unique Entity / Account / Reference ID
+    unique_id = ''
+    m_loan_or_ref = re.search(
+        r'(?:Loan\s*account|Account\s*(?:No|ID|Number)|Reference|Customer\s*ID|Client\s*ID|Invoice\s*(?:No|ID|#)|Policy\s*(?:No|ID)|Contract\s*(?:No|ID))[\s:|#]*([A-Z]{2,6}-\d{2,4}-\d{3,8}|\b[A-Z]{2,6}-\d{3,10}\b|\b\d{6,12}\b)',
+        flat_txt,
+        re.IGNORECASE,
+    )
+    if m_loan_or_ref:
+        unique_id = m_loan_or_ref.group(1).strip().upper()
+    elif ids_found:
+        unique_id = str(ids_found[0]).strip().upper()
+    else:
+        org_prefix = re.sub(r'[^A-Z0-9]', '', owner_org.upper())[:6] or 'ORG'
+        short_hash = hashlib.sha256((owner_org + (file_name or '') + raw_text[:200]).encode('utf-8', 'ignore')).hexdigest()[:4].upper()
+        unique_id = f"{org_prefix}-{short_hash}"
+
+    org_slug = re.sub(r'[^A-Za-z0-9]+', '_', owner_org).strip('_')[:36] or 'Enterprise_Entity'
+    cat_slug = re.sub(r'[^A-Za-z0-9]+', '_', primary).strip('_')[:28] or 'Classified_Doc'
+    standardized_filename = f"{org_slug}__{unique_id}__{cat_slug}{file_ext_dot}"
+
+    result['owner_organization'] = owner_org
+    result['unique_entity_id'] = unique_id
+    result['standardized_filename'] = standardized_filename
+
     result['extracted_metadata'] = {
         'document_title': meta.get('document_title') or result.get('classification_title') or inferred_title,
-        'author_or_issuer': meta.get('author_or_issuer') or 'Not specified in source',
+        'owner_organization': owner_org,
+        'unique_entity_id': unique_id,
+        'standardized_filename': standardized_filename,
+        'author_or_issuer': meta.get('author_or_issuer') or owner_org,
         'dates': list(dict.fromkeys([str(d) for d in dates_found]))[:5],
-        'identifiers': list(dict.fromkeys([str(i) for i in ids_found]))[:5],
+        'identifiers': list(dict.fromkeys([unique_id] + [str(i) for i in ids_found if str(i)]))[:6],
         'version': meta.get('version') or '1.0',
-        'entities': (meta.get('entities') or [])[:6],
+        'entities': list(dict.fromkeys([owner_org] + [str(e) for e in (meta.get('entities') or []) if str(e)]))[:6],
         'keywords': (meta.get('keywords') or [primary.lower(), (result.get('domain') or 'enterprise').lower()])[:8],
         'file_type': ext or 'TEXT',
         'word_count': len(raw_text.split()) if raw_text else 0
@@ -777,7 +846,11 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
     result['autonomous_routing'] = {
         'execution_status': exec_status,
         'destination_repository': final_dest_name,
-        'destination_path': final_dest_path,
+        'destination_path': f"{final_dest_path.rstrip('/')}/{org_slug}_{unique_id}/{standardized_filename}",
+        'category_folder_path': final_dest_path,
+        'owner_organization': owner_org,
+        'unique_entity_id': unique_id,
+        'standardized_filename': standardized_filename,
         'department': dept,
         'workflow_triggered': 'Deep-Context-Synthesis-AutoRoute' if exec_status == 'ROUTED' else 'Exception-Triage',
         'retention_tier': retention_rule,
