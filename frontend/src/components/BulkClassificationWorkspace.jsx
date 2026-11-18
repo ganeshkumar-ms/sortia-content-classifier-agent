@@ -40,9 +40,6 @@ function persistBulkBatches(list) {
 
 function buildClientSimilarGroups(batch) {
   if (!batch) return []
-  if (Array.isArray(batch.similar_document_groups) && batch.similar_document_groups.length > 0) {
-    return batch.similar_document_groups
-  }
   const baseLoc = (batch.target_storage_location || '/Enterprise_Vault').replace(/[\\/]+$/, '')
   const sep = baseLoc.includes('\\') && !baseLoc.includes('/') ? '\\' : '/'
   const map = {}
@@ -58,16 +55,14 @@ function buildClientSimilarGroups(batch) {
     const uniqueId = f.unique_entity_id || f.result?.unique_entity_id || f.result?.extracted_metadata?.unique_entity_id || f.doc_id
     const stdName = f.standardized_filename || f.result?.standardized_filename || `${ownerOrg.replace(/[^A-Za-z0-9]+/g, '_')}__${uniqueId}__${catSlug}_${f.filename}`
     map[cat].count += 1
-    map[cat].documents.append
-      ? map[cat].documents.append({ doc_id: f.doc_id, original_filename: f.filename, standardized_filename: stdName, owner_organization: ownerOrg, unique_entity_id: uniqueId })
-      : map[cat].documents.push({
-          doc_id: f.doc_id,
-          original_filename: f.filename,
-          standardized_filename: stdName,
-          owner_organization: ownerOrg,
-          unique_entity_id: uniqueId,
-          destination_path: f.destination_path || `${folder}${stdName}`,
-        })
+    map[cat].documents.push({
+      doc_id: f.doc_id,
+      original_filename: f.filename,
+      standardized_filename: stdName,
+      owner_organization: ownerOrg,
+      unique_entity_id: uniqueId,
+      destination_path: f.destination_path || `${folder}${stdName}`,
+    })
   }
   return Object.values(map).sort((a, b) => b.count - a.count)
 }
@@ -80,9 +75,9 @@ export default function BulkClassificationWorkspace({
 }) {
   const [filesToUpload, setFilesToUpload] = useState([])
   const [batchName, setBatchName] = useState('')
-  const [targetStorageLocation, setTargetStorageLocation] = useState('')
   const [editLocationDraft, setEditLocationDraft] = useState('')
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false)
+  const [locationSavedSuccess, setLocationSavedSuccess] = useState(false)
   const [inputLocationPath, setInputLocationPath] = useState('')
   const [isScanningPath, setIsScanningPath] = useState(false)
   const [ingestMode, setIngestMode] = useState('upload') // 'upload' | 'location'
@@ -96,7 +91,7 @@ export default function BulkClassificationWorkspace({
 
   const fileInputRef = useRef(null)
   const folderInputRef = useRef(null)
-  const targetLocationInputRef = useRef(null)
+  const similarLocInputRef = useRef(null)
   const pollIntervalRef = useRef(null)
 
   // Save/merge a batch into persistent history and notify parent App
@@ -116,6 +111,7 @@ export default function BulkClassificationWorkspace({
     if (initialBatch && initialBatch.batch_id) {
       setCurrentBatch(initialBatch)
       setEditLocationDraft(initialBatch.target_storage_location || '')
+      setLocationSavedSuccess(false)
     }
   }, [initialBatch?.batch_id])
 
@@ -133,7 +129,6 @@ export default function BulkClassificationWorkspace({
           for (const b of res.batches) {
             if (!b?.batch_id) continue
             const existing = byId.get(b.batch_id)
-            // Keep whichever has fuller file results
             if (!existing || (b.files && b.files.length >= (existing.files?.length || 0))) {
               byId.set(b.batch_id, { ...existing, ...b })
             }
@@ -205,24 +200,20 @@ export default function BulkClassificationWorkspace({
     }
   }
 
-  // Start Batch from uploaded files
+  // Start Batch from uploaded files (NO storage location required upfront!)
   const handleStartBatch = async () => {
     if (filesToUpload.length === 0) return
-    if (!targetStorageLocation.trim()) {
-      setError('Please enter the Target Storage Location where SORTIA should group and store all similar documents.')
-      targetLocationInputRef.current?.focus()
-      return
-    }
     setIsLoading(true)
     setError(null)
+    setLocationSavedSuccess(false)
     try {
       const resp = await createBatch({
         files: filesToUpload,
         batchName: batchName || `Batch ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
-        targetStorageLocation: targetStorageLocation.trim(),
+        targetStorageLocation: '',
       })
       setCurrentBatch(resp)
-      setEditLocationDraft(resp.target_storage_location || targetStorageLocation.trim())
+      setEditLocationDraft(resp.target_storage_location || '')
       upsertBatchInHistory(resp)
       setFilesToUpload([])
       setBatchName('')
@@ -233,27 +224,23 @@ export default function BulkClassificationWorkspace({
     }
   }
 
-  // Start Batch from direct file or folder location path
+  // Start Batch from direct file or folder location path (NO storage location required upfront!)
   const handleStartPathBatch = async () => {
     if (!inputLocationPath.trim()) {
       setError('Please enter a source folder path or file location to scan.')
       return
     }
-    if (!targetStorageLocation.trim()) {
-      setError('Please enter the Target Storage Location where SORTIA should group and store all similar documents.')
-      targetLocationInputRef.current?.focus()
-      return
-    }
     setIsScanningPath(true)
     setError(null)
+    setLocationSavedSuccess(false)
     try {
       const resp = await createBatchFromPath({
         folderPath: inputLocationPath.trim(),
         batchName: batchName || `Batch (${inputLocationPath.trim().split(/[\\/]/).pop()})`,
-        targetStorageLocation: targetStorageLocation.trim(),
+        targetStorageLocation: '',
       })
       setCurrentBatch(resp)
-      setEditLocationDraft(resp.target_storage_location || targetStorageLocation.trim())
+      setEditLocationDraft(resp.target_storage_location || '')
       upsertBatchInHistory(resp)
       setInputLocationPath('')
       setBatchName('')
@@ -268,10 +255,12 @@ export default function BulkClassificationWorkspace({
     if (!currentBatch?.batch_id || !editLocationDraft.trim()) return
     setIsUpdatingLocation(true)
     setError(null)
+    setLocationSavedSuccess(false)
     try {
       const updated = await updateBatchStorageLocation(currentBatch.batch_id, editLocationDraft.trim())
       setCurrentBatch(updated)
       upsertBatchInHistory(updated)
+      setLocationSavedSuccess(true)
     } catch (err) {
       // Fallback client-side update if batch was restored from localStorage after Lambda cold start
       const cleanLoc = editLocationDraft.trim().replace(/[\\/]+$/, '')
@@ -294,6 +283,7 @@ export default function BulkClassificationWorkspace({
       localUpdated.similar_document_groups = buildClientSimilarGroups(localUpdated)
       setCurrentBatch(localUpdated)
       upsertBatchInHistory(localUpdated)
+      setLocationSavedSuccess(true)
     } finally {
       setIsUpdatingLocation(false)
     }
@@ -338,6 +328,7 @@ export default function BulkClassificationWorkspace({
 
   const handleOpenSavedBatch = async (b) => {
     setError(null)
+    setLocationSavedSuccess(false)
     if (b.files && b.files.length > 0) {
       setCurrentBatch(b)
       setEditLocationDraft(b.target_storage_location || '')
@@ -371,8 +362,10 @@ export default function BulkClassificationWorkspace({
     return matchesQ && matchesStatus
   })
 
-  const catDist = currentBatch?.category_distribution || {}
-  const similarGroups = buildClientSimilarGroups(currentBatch)
+  const allGroups = buildClientSimilarGroups(currentBatch)
+  // A "Similar Document Group" is a category where 2 or more documents share the same classification
+  const similarDocClusters = allGroups.filter(g => g.count >= 2)
+  const totalSimilarDocsCount = similarDocClusters.reduce((acc, g) => acc + g.count, 0)
 
   return (
     <div className="srtBulkWorkspace">
@@ -386,8 +379,8 @@ export default function BulkClassificationWorkspace({
               </svg>
             </div>
             <div>
-              <span className="srtBulkTopHeading">BULK FILE CLASSIFICATION &amp; SIMILAR-DOCUMENT ROUTING</span>
-              <span className="srtBulkTopSub">Identifies document type, owner/organization &amp; unique entity ID, and groups all similar documents into your target location</span>
+              <span className="srtBulkTopHeading">BULK FILE CLASSIFICATION &amp; ROUTING ENGINE</span>
+              <span className="srtBulkTopSub">Identifies document type, owner/organization &amp; unique entity ID, and detects similar documents across batches</span>
             </div>
           </div>
           <button type="button" className="srtBulkCloseBtn" onClick={onClose} aria-label="Close modal">
@@ -396,46 +389,20 @@ export default function BulkClassificationWorkspace({
         </div>
       )}
 
-      {/* 1. UPLOAD & INGEST STAGE */}
+      {/* 1. UPLOAD & INGEST STAGE (NO UPFRONT STORAGE PROMPT) */}
       {!currentBatch && (
         <div className="srtBulkUploadCard">
           <div className="srtBulkCardHead">
             <div>
               <h3>Enterprise Ingestion &amp; Batch Intake</h3>
-              <p>Specify where similar documents should be stored, then upload files or scan a folder to classify in parallel.</p>
+              <p>Upload multiple files or scan a source folder to classify in parallel. If SORTIA detects similar documents, it will prompt you for a storage location to group them.</p>
             </div>
             <div className="srtBulkLimitsBadge">
               <span>PDF · DOCX · TXT · XLSX · PPTX · ZIP · IMAGES</span>
             </div>
           </div>
 
-          {/* STEP 1: ASK USER FOR TARGET STORAGE LOCATION FOR SIMILAR DOCUMENTS */}
-          <div className="srtPathInputCard" style={{ marginBottom: '16px', border: '1px solid rgba(56, 189, 248, 0.4)', background: 'rgba(7, 140, 255, 0.07)' }}>
-            <div className="srtPathHeader">
-              <strong style={{ color: '#7dd3fc' }}>1. Target Storage Location for Grouping Similar Documents (Required):</strong>
-              <p>Enter the folder path where SORTIA should group and store all similar documents together (e.g. by category &amp; organization/unique ID).</p>
-            </div>
-            <div className="srtPathInputRow">
-              <div className="srtPathFieldWrap">
-                <svg className="srtPathIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <input
-                  ref={targetLocationInputRef}
-                  type="text"
-                  className="srtPathInput"
-                  placeholder="Enter target location to store similar docs (e.g. C:\Enterprise_Vault\Sorted_Docs or /Archive/2026_Classified)"
-                  value={targetStorageLocation}
-                  onChange={e => {
-                    setTargetStorageLocation(e.target.value)
-                    if (error) setError(null)
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* STEP 2: INGESTION MODE SELECTOR TABS */}
+          {/* INGESTION MODE SELECTOR TABS */}
           <div className="srtBulkTabGroup">
             <button
               type="button"
@@ -525,12 +492,12 @@ export default function BulkClassificationWorkspace({
             </div>
           )}
 
-          {/* MODE B: DIRECT LOCAL SOURCE FILE / FOLDER LOCATION (No "Current Agent Workspace" default button) */}
+          {/* MODE B: DIRECT LOCAL SOURCE FILE / FOLDER LOCATION */}
           {ingestMode === 'location' && (
             <div className="srtPathInputCard">
               <div className="srtPathHeader">
                 <strong>Enter Source Directory or Network File Location to Scan:</strong>
-                <p>Specify a local folder path on your system. SORTIA will crawl, classify, and group all similar documents into your target storage location above.</p>
+                <p>Specify a local folder path on your system. SORTIA will crawl and classify all documents inside.</p>
               </div>
               <div className="srtPathInputRow">
                 <div className="srtPathFieldWrap">
@@ -595,7 +562,7 @@ export default function BulkClassificationWorkspace({
                   onClick={handleStartBatch}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Classifying & Grouping Similar Docs...' : `Start Batch Classification (${filesToUpload.length} Files)`}
+                  {isLoading ? 'Classifying Documents...' : `Start Batch Classification (${filesToUpload.length} Files)`}
                 </button>
               </div>
             </div>
@@ -627,7 +594,7 @@ export default function BulkClassificationWorkspace({
                       </div>
                       <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
                         {b.total_files || (b.files?.length || 0)} files · {b.classified_count ?? (b.files?.length || 0)} routed
-                        {b.target_storage_location ? ` · Location: ${b.target_storage_location}` : ''}
+                        {b.target_storage_location ? ` · Stored in: ${b.target_storage_location}` : ''}
                         {b.created_at ? ` · ${b.created_at}` : ''}
                       </div>
                     </div>
@@ -700,38 +667,6 @@ export default function BulkClassificationWorkspace({
             </div>
           </div>
 
-          {/* USER-SPECIFIED TARGET STORAGE LOCATION BAR */}
-          <div className="srtPathInputCard" style={{ marginBottom: '14px', padding: '12px 16px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-              <div>
-                <strong style={{ color: '#7dd3fc', fontSize: '12.5px', display: 'block' }}>
-                  TARGET LOCATION FOR STORING SIMILAR DOCUMENTS:
-                </strong>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  All similar documents are grouped together by category under this location and named with their Owner/Organization &amp; Unique ID.
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 340px', maxWidth: '540px' }}>
-                <input
-                  type="text"
-                  className="srtPathInput"
-                  placeholder="Enter target location path (e.g. C:\Enterprise_Vault\Sorted_Docs)"
-                  value={editLocationDraft}
-                  onChange={e => setEditLocationDraft(e.target.value)}
-                  style={{ padding: '7px 12px', fontSize: '12.5px' }}
-                />
-                <button
-                  type="button"
-                  className="srtToolBtn primary"
-                  onClick={handleApplyNewStorageLocation}
-                  disabled={isUpdatingLocation || !editLocationDraft.trim()}
-                >
-                  {isUpdatingLocation ? 'Updating...' : 'Apply Location'}
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* 4 KPI Cards */}
           <div className="srtBatchKpiGrid">
             <div className="srtBatchKpi">
@@ -742,12 +677,16 @@ export default function BulkClassificationWorkspace({
             <div className="srtBatchKpi">
               <span className="kpiLabel">AUTONOMOUSLY ROUTED</span>
               <strong className="kpiVal green">{currentBatch.classified_count}</strong>
-              <span className="kpiSub">Grouped into target location</span>
+              <span className="kpiSub">Classified with Owner &amp; Unique ID</span>
             </div>
             <div className="srtBatchKpi">
-              <span className="kpiLabel">SIMILAR DOC FOLDERS</span>
-              <strong className="kpiVal" style={{ color: '#38bdf8' }}>{similarGroups.length}</strong>
-              <span className="kpiSub">Category subfolders created</span>
+              <span className="kpiLabel">SIMILAR DOC GROUPS</span>
+              <strong className="kpiVal" style={{ color: '#38bdf8' }}>{similarDocClusters.length}</strong>
+              <span className="kpiSub">
+                {similarDocClusters.length > 0
+                  ? `${totalSimilarDocsCount} similar docs detected`
+                  : 'No multi-doc clusters'}
+              </span>
             </div>
             <div className="srtBatchKpi">
               <span className="kpiLabel">EXCEPTIONS / FAILED</span>
@@ -756,56 +695,108 @@ export default function BulkClassificationWorkspace({
             </div>
           </div>
 
-          {/* GROUPED SIMILAR DOCUMENTS BY TARGET LOCATION */}
-          {similarGroups.length > 0 && (
-            <div className="srtBatchDistSection" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
-              <span className="distLabel">
-                SIMILAR DOCUMENTS GROUPED IN TARGET LOCATION ({currentBatch.target_storage_location || '/Enterprise_Vault'}):
-              </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '10px' }}>
-                {similarGroups.map((grp) => (
-                  <div
-                    key={grp.category}
-                    style={{
-                      background: 'rgba(6, 22, 39, 0.85)',
-                      border: '1px solid rgba(56, 189, 248, 0.25)',
-                      borderRadius: '10px',
-                      padding: '10px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <strong style={{ color: '#38bdf8', fontSize: '13px' }}>{grp.category}</strong>
-                      <span className="distChip" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                        {grp.count} similar doc{grp.count > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#6ee7b7', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: '8px' }}>
-                      📁 {grp.target_folder}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      {(grp.documents || []).map((d, di) => (
-                        <div
-                          key={d.doc_id || di}
-                          style={{
-                            fontSize: '11.5px',
-                            padding: '5px 8px',
-                            borderRadius: '6px',
-                            background: 'rgba(15, 23, 42, 0.7)',
-                            border: '1px solid rgba(148, 163, 184, 0.16)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
-                            <strong style={{ color: '#f1f5f9' }}>{d.owner_organization}</strong>
-                            <code style={{ color: '#38bdf8', fontSize: '11px' }}>ID: {d.unique_entity_id}</code>
-                          </div>
-                          <div style={{ color: '#94a3b8', fontSize: '11px', wordBreak: 'break-all', marginTop: '2px' }}>
-                            → {d.standardized_filename}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+          {/* ONLY SHOW STORAGE LOCATION PROMPT AFTER FINDING SIMILAR DOCUMENTS (count >= 2) */}
+          {similarDocClusters.length > 0 && (
+            <div
+              className="srtPathInputCard"
+              style={{
+                marginBottom: '14px',
+                padding: '14px 16px',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                background: 'rgba(7, 140, 255, 0.09)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <strong style={{ color: '#38bdf8', fontSize: '13.5px', display: 'block', marginBottom: '3px' }}>
+                    📁 Similar Documents Found ({totalSimilarDocsCount} documents across {similarDocClusters.length} similar group{similarDocClusters.length > 1 ? 's' : ''}: {similarDocClusters.map(g => `${g.category} (${g.count})`).join(', ')})
+                  </strong>
+                  <span style={{ fontSize: '12.5px', color: '#cbd5e1' }}>
+                    Where would you like to store these similar documents together? Enter a particular target folder location below:
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                  <div className="srtPathFieldWrap" style={{ flex: '1 1 360px' }}>
+                    <svg className="srtPathIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <input
+                      ref={similarLocInputRef}
+                      type="text"
+                      className="srtPathInput"
+                      placeholder="Enter location to store similar documents (e.g. C:\Enterprise_Vault\Similar_Docs or /Archive/Commercial_Loan_Docs)"
+                      value={editLocationDraft}
+                      onChange={e => {
+                        setEditLocationDraft(e.target.value)
+                        if (locationSavedSuccess) setLocationSavedSuccess(false)
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') handleApplyNewStorageLocation() }}
+                    />
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    className="srtToolBtn primary"
+                    onClick={handleApplyNewStorageLocation}
+                    disabled={isUpdatingLocation || !editLocationDraft.trim()}
+                    style={{ padding: '9px 16px', fontWeight: 700 }}
+                  >
+                    {isUpdatingLocation ? 'Storing Similar Docs...' : 'Store Similar Documents Here ↗'}
+                  </button>
+                </div>
+
+                {(locationSavedSuccess || currentBatch.target_storage_location) && (
+                  <div style={{ fontSize: '12px', color: '#6ee7b7', fontWeight: 600 }}>
+                    ✓ All similar documents have been grouped and routed to: <code>{currentBatch.target_storage_location}</code>
+                  </div>
+                )}
+
+                {/* Display grouped similar documents */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', marginTop: '4px' }}>
+                  {similarDocClusters.map((grp) => (
+                    <div
+                      key={grp.category}
+                      style={{
+                        background: 'rgba(4, 18, 32, 0.88)',
+                        border: '1px solid rgba(56, 189, 248, 0.28)',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <strong style={{ color: '#38bdf8', fontSize: '13px' }}>{grp.category}</strong>
+                        <span className="distChip" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                          {grp.count} similar docs
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#6ee7b7', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: '8px' }}>
+                        📁 {grp.target_folder}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        {(grp.documents || []).map((d, di) => (
+                          <div
+                            key={d.doc_id || di}
+                            style={{
+                              fontSize: '11.5px',
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(15, 23, 42, 0.72)',
+                              border: '1px solid rgba(148, 163, 184, 0.16)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+                              <strong style={{ color: '#f1f5f9' }}>{d.owner_organization}</strong>
+                              <code style={{ color: '#38bdf8', fontSize: '11px' }}>ID: {d.unique_entity_id}</code>
+                            </div>
+                            <div style={{ color: '#94a3b8', fontSize: '11px', wordBreak: 'break-all', marginTop: '2px' }}>
+                              → {d.standardized_filename}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -843,7 +834,7 @@ export default function BulkClassificationWorkspace({
                   <th>CLASSIFICATION</th>
                   <th>CONFIDENCE</th>
                   <th>SECURITY</th>
-                  <th>TARGET SIMILAR-DOCS LOCATION</th>
+                  <th>STORAGE LOCATION</th>
                   <th>STATUS</th>
                   <th>ACTIONS</th>
                 </tr>
