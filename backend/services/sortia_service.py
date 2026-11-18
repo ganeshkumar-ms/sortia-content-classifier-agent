@@ -998,7 +998,7 @@ CATEGORY_SIGNALS = {
         'patterns': [r'\b(?:claim\s+(?:form|number|id)|first\s+notice\s+of\s+loss|incident\s+date)\b'],
     },
     'Technical Documentation': {
-        'keywords': ['api', 'lambda', 'endpoint', 'dynamodb', 'architecture', 'json', 'schema', 'specification', 'cli', 'sdk', 'deployment', 'dockerfile', 'terraform'],
+        'keywords': ['api reference', 'swagger', 'openapi', 'lambda', 'endpoint', 'dynamodb', 'architecture', 'sdk', 'cli', 'dockerfile', 'terraform', 'kubernetes', 'microservice'],
         'patterns': [r'\b(?:https?://|/api/|GET\s+/|POST\s+/|aws\s+\w+|```)\b'],
     },
     'Marketing Content': {
@@ -1014,8 +1014,17 @@ CATEGORY_SIGNALS = {
         'patterns': [r'"dependencies"\s*:', r'"devDependencies"\s*:', r'\bdefineConfig\b'],
     },
     'Loan Application': {
-        'keywords': ['loan application', 'facility request', 'borrower', 'requested amount', 'loan purpose', 'loan origination'],
-        'patterns': [r'\b(?:loan\s+application|requested\s+(?:loan|facility)\s+amount)\b'],
+        'keywords': [
+            'loan application', 'facility request', 'borrower', 'requested amount', 'loan purpose', 'loan origination',
+            'bike loan', 'two wheeler loan', 'two-wheeler loan', 'auto loan', 'car loan', 'personal loan', 'home loan',
+            'loan', 'emi', 'interest rate', 'tenure', 'down payment', 'processing fee', 'sanction', 'disbursement',
+            'loan amount', 'repayment', 'eligibility',
+        ],
+        'patterns': [
+            r'\b(?:loan\s+application|requested\s+(?:loan|facility)\s+amount)\b',
+            r'\b(?:bike|two[-\s]wheeler|auto|car|personal|home|commercial)\s+loan\b',
+            r'\b(?:interest\s+rate|emi|repayment\s+tenure|processing\s+fee)\b',
+        ],
     },
     'Financial Statement': {
         'keywords': ['balance sheet', 'income statement', 'cash flow', 'audited financial', 'ebitda', 'assets', 'liabilities'],

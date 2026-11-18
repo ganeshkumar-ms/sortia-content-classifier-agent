@@ -794,8 +794,11 @@ export default function BulkClassificationWorkspace({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <strong style={{ color: '#38bdf8', fontSize: '13.5px', display: 'block', marginBottom: '3px' }}>
-                    📁 Similar Documents Found ({totalSimilarDocsCount} documents across {similarDocClusters.length} similar group{similarDocClusters.length > 1 ? 's' : ''}: {similarDocClusters.map(g => `${g.category} (${g.count})`).join(', ')})
+                  <strong style={{ color: '#38bdf8', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span>Similar Documents Found ({totalSimilarDocsCount} documents across {similarDocClusters.length} similar group{similarDocClusters.length > 1 ? 's' : ''}: {similarDocClusters.map(g => `${g.category} (${g.count})`).join(', ')})</span>
                   </strong>
                   <span style={{ fontSize: '12.5px', color: '#cbd5e1' }}>
                     Where would you like to store these similar documents together? Enter a particular target folder location below:
@@ -810,7 +813,14 @@ export default function BulkClassificationWorkspace({
                     disabled={isUpdatingLocation}
                     style={{ padding: '10px 18px', fontWeight: 700 }}
                   >
-                    {isUpdatingLocation ? 'Writing Files to Folder...' : '📁 Choose Folder & Store Files on PC ↗'}
+                    {isUpdatingLocation ? 'Writing Files to Folder...' : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>Choose Folder &amp; Store Files on PC ↗</span>
+                      </span>
+                    )}
                   </button>
                   <div className="srtPathFieldWrap" style={{ flex: '1 1 280px' }}>
                     <svg className="srtPathIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
@@ -860,8 +870,11 @@ export default function BulkClassificationWorkspace({
                           {grp.count} similar docs
                         </span>
                       </div>
-                      <div style={{ fontSize: '11px', color: '#6ee7b7', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: '8px' }}>
-                        📁 {grp.target_folder}
+                      <div style={{ fontSize: '11px', color: '#6ee7b7', fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>{grp.target_folder}</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                         {(grp.documents || []).map((d, di) => (
