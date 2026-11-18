@@ -84,8 +84,20 @@ function parseRejection(data) {
   return { title, filename, reason, reasonLabel, technicalDetail, supported: isFormatIssue ? supported : '', howToFix }
 }
 
-export default function SortiaResultCard({ data, guardrails: propGuardrails, onFollowUp }) {
+export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
   const [activeTab, setActiveTab] = useState('decision') // 'decision' | 'signals' | 'metadata'
+  const [scrollTarget, setScrollTarget] = useState('')
+
+  function jumpToSection(tab, elementId) {
+    setActiveTab(tab)
+    setScrollTarget(elementId || '')
+    setTimeout(() => {
+      if (elementId) {
+        const el = document.getElementById(elementId)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 40)
+  }
 
   if (!data || typeof data !== 'object') {
     return <div className="plainChatBubble">Ready to classify your content.</div>
@@ -163,14 +175,16 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
   }
 
   const confidence = toPct(data.confidence, 65)
-  const confCalibration = toText(data.confidence_calibration, confidence >= 85 ? 'High' : confidence >= 55 ? 'Moderate' : 'Low')
-  const primaryCategory = toText(data.primary_category, 'Knowledge Article')
-  const docTypeDetected = toText(data.document_type_detected || data.classification_title || primaryCategory)
+  const primaryCategory = toText(data.primary_category, 'Not verified')
+  const docName = toText(
+    data.extracted_metadata?.document_title || data.file_name || data.document_type_detected || data.classification_title,
+    'Submitted Document'
+  )
   const secondaryTags = toList(data.secondary_classifications)
   const taxonomy = toList(data.taxonomy_hierarchy)
   const subtype = toText(data.subtype, '')
   const domain = toText(data.domain, '')
-  const summary = toText(data.summary)
+  const summary = toText(data.summary, '')
   const candidates = toList(data.candidates)
   const signals = toList(data.classification_signals)
   const ambiguity = (data.ambiguity && typeof data.ambiguity === 'object') ? data.ambiguity : {}
@@ -179,17 +193,75 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
   const deepRetry = (data.deep_context_resolution && typeof data.deep_context_resolution === 'object') ? data.deep_context_resolution : null
   const metadata = (data.extracted_metadata && typeof data.extracted_metadata === 'object') ? data.extracted_metadata : {}
   const sensitivity = (data.sensitivity && typeof data.sensitivity === 'object') ? data.sensitivity : {}
-  const sensLevel = toText(sensitivity.level, 'Internal')
-  const accessScope = toText(sensitivity.access_permission_scope, 'Internal Enterprise Users (Role-Based Access Control)')
+  const sensLevel = toText(sensitivity.level, 'Not verified')
+  const accessScope = toText(sensitivity.access_permission_scope, 'Not verified')
   const autoRoute = (data.autonomous_routing && typeof data.autonomous_routing === 'object') ? data.autonomous_routing : {}
   const execStatus = toText(autoRoute.execution_status, 'ROUTED')
   const isException = execStatus.startsWith('EXCEPTION')
   const similarity = (data.similarity_check && typeof data.similarity_check === 'object') ? data.similarity_check : {}
   const followups = toList(data.suggested_followups)
 
+  const primaryRankScore = candidates[0] ? toPct(candidates[0].ranking_score ?? candidates[0].confidence, 0) : null
+  const secondaryRankScore = candidates[1] ? toPct(candidates[1].ranking_score ?? candidates[1].confidence, 0) : null
+  const candidateMargin = (primaryRankScore !== null && secondaryRankScore !== null)
+    ? Math.max(0, primaryRankScore - secondaryRankScore)
+    : null
+  const hasCalibratedConfidence = Boolean(data.calibrated_confidence)
+  const breakdown = ambiguity?.calculation_breakdown && typeof ambiguity.calculation_breakdown === 'object'
+    ? ambiguity.calculation_breakdown
+    : null
+  const contributingFactors = breakdown
+    ? [
+        { label: 'Candidate competition', val: breakdown.competition_factor },
+        { label: 'Signal uncertainty', val: breakdown.uncertainty_factor },
+        { label: 'Conflicting cues', val: breakdown.conflicting_signals_factor },
+        { label: 'Taxonomy overlap', val: breakdown.taxonomy_overlap_factor },
+      ].filter(f => Number(f.val) > 0)
+    : []
+  const mitigationValue = breakdown && Number(breakdown.evidence_mitigation_factor) > 0
+    ? Number(breakdown.evidence_mitigation_factor)
+    : 0
+  const conflictingCueList = toList(ambiguity.conflicting_signals)
+
+  const deepResolutionText = toText(deepRetry?.resolution, '')
+  const deepTriggerText = toText(deepRetry?.trigger, '')
+  const deepAnalysisText = toText(deepRetry?.analysis, '')
+  const deepIsDistinct = Boolean(deepAnalysisText && deepAnalysisText.trim() !== summary.trim())
+
+  const rawPolicyReason = toText(autoRoute.execution_reason, '')
+  const cleanPolicyJustification = rawPolicyReason
+    .replace(/Destination:\s*[^·.]+\s*·?\s*/i, '')
+    .replace(/Sensitivity:\s*[^·.]+\s*·?\s*/i, '')
+    .replace(/Access:\s*[^.]+\.\s*/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim() || 'Not verified'
+
+  const clearanceLabel = sensitivity.access_control_cleared === true
+    ? 'Cleared for automated routing'
+    : sensitivity.access_control_cleared === false
+    ? 'Restricted — manual review required'
+    : 'Not verified'
+
+  // Clean taxonomy hierarchy: keep parent-child taxonomy nodes distinct from secondary labels
+  const cleanTaxonomy = (() => {
+    const base = taxonomy.map(t => toText(t)).filter(Boolean)
+    if (base.length === 0) return [primaryCategory, subtype].filter(Boolean)
+    const hasPrimary = base.some(n => n.toLowerCase() === primaryCategory.toLowerCase())
+    if (!hasPrimary && base.length >= 2) {
+      return [...base.slice(0, -1), primaryCategory, base[base.length - 1]]
+    }
+    return base
+  })()
+
+  // Filter secondary attributes so they don't duplicate primaryCategory or taxonomy nodes
+  const distinctSecondary = secondaryTags.filter(tag => {
+    const t = toText(tag).toLowerCase()
+    return t && t !== primaryCategory.toLowerCase() && t !== subtype.toLowerCase()
+  })
+
   return (
-    <div className="sortiaCard">
-      {/* 0. GUARDRAILS & AUDIT METADATA BAR */}
+    <div className="sortiaCard srtRefined" id={`srt-card-${traceId || 'active'}`}>
+      {/* Top Guardrails & Trace Bar */}
       <div className="srtTopMetaBar">
         <span className={`srtGuardrailPill ${guardrails?.status === 'BLOCKED' ? 'blocked' : 'passed'}`}>
           <ShieldIcon />
@@ -197,8 +269,8 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
             {guardrails?.status === 'BLOCKED'
               ? `Guardrails: Blocked (${guardrails.triggered_rule || 'Policy Violation'})`
               : guardrails?.status === 'REDACTED'
-              ? `Guardrails: ${guardrails.redacted_count || 1} Secret(s) Sanitized`
-              : 'Guardrails: Passed · Enterprise Policy Verified'}
+              ? `Guardrails: ${guardrails.redacted_count || 1} secret(s) sanitized`
+              : 'Guardrails: Verified'}
           </span>
         </span>
 
@@ -206,71 +278,79 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
           {autoRoute.processing_time_ms && (
             <span className="srtTimeChip">{autoRoute.processing_time_ms} ms</span>
           )}
-          {autoRoute.audit_ref && (
-            <span className="srtTraceChip" title="Audit Reference">{autoRoute.audit_ref}</span>
-          )}
-          {traceId && (
-            <span className="srtTraceChip" title="Trace ID">{traceId}</span>
+          {(autoRoute.audit_ref || traceId) && (
+            <span className="srtTraceChip" title="Audit Trace Reference">{autoRoute.audit_ref || traceId}</span>
           )}
         </div>
       </div>
 
-      {/* 1. HERO CONTENT INTELLIGENCE BANNER */}
-      <div className="srtHeroBox">
-        <div className="srtHeroTop">
-          <div className="srtHeroBadges">
-            <span className={`statusPill ${isException ? 'caution' : 'optimal'}`}>
-              <span className="dot" />
-              {isException
-                ? 'EXCEPTION QUEUE · AUTO-TRIAGE'
-                : deepRetry?.performed
-                ? 'AUTONOMOUS ROUTE · DEEP-CONTEXT RESOLVED'
-                : 'AUTONOMOUS ROUTE · SUCCESS'}
-            </span>
-            <span className="primaryCatBadge">{primaryCategory}</span>
-            {subtype && <span className="subtypeBadge">{subtype}</span>}
-            {domain && <span className="domainBadge">{domain}</span>}
-          </div>
-          <span className={`srtSensPill sens-${sensLevel.toLowerCase()}`}>
-            {sensLevel}
+      {/* A. Classification Result */}
+      <section className="srtBlock srtHeroResult">
+        <div className="srtDocRow">
+          <span className="srtDocName" title={docName}>{docName}</span>
+          <span className={`srtRoutePill ${isException ? 'exception' : 'routed'}`}>
+            {isException ? 'Exception Review' : 'Routing Decision: Approved'}
           </span>
         </div>
 
-        <div className="classificationTitle">{docTypeDetected}</div>
+        <div className="srtPrimaryRow">
+          <h2 className="srtPrimaryDecision">{primaryCategory}</h2>
+          {subtype && subtype.toLowerCase() !== primaryCategory.toLowerCase() && (
+            <span className="srtSubtypeLabel">{subtype}</span>
+          )}
+        </div>
 
-        {/* MULTI-LABEL SECONDARY CLASSIFICATION TAGS */}
-        {secondaryTags.length > 0 && (
-          <div className="srtTagRow">
-            <span className="srtTagLabel">MULTI-LABEL ATTRIBUTES:</span>
-            {secondaryTags.map((tag, idx) => (
-              <span key={idx} className="srtSecondaryTag">{toText(tag)}</span>
+        {cleanTaxonomy.length > 0 && (
+          <div className="srtTaxChain" aria-label="Taxonomy hierarchy">
+            <span className="srtTaxPrefix">Taxonomy:</span>
+            {cleanTaxonomy.map((node, idx) => (
+              <span key={idx} className="srtTaxStep">
+                <span className={idx === cleanTaxonomy.length - 1 ? 'srtTaxLeaf' : 'srtTaxParent'}>
+                  {node}
+                </span>
+                {idx < cleanTaxonomy.length - 1 && <span className="srtTaxSep">→</span>}
+              </span>
             ))}
           </div>
         )}
 
-        {summary && (
-          <div className="whatTypeBox" style={{ marginTop: '10px' }}>
-            <span className="typeLabel">WHAT IS THIS CONTENT &amp; WHY CLASSIFIED THIS WAY?</span>
-            <p>{summary}</p>
+        <div className="srtMetaChipsRow">
+          <div className="srtMetaChip">
+            <span className="srtMetaChipKey">Domain</span>
+            <span className="srtMetaChipVal">{domain || 'Not verified'}</span>
           </div>
-        )}
-      </div>
+          <div className="srtMetaChip">
+            <span className="srtMetaChipKey">Sensitivity</span>
+            <span className={`srtMetaChipVal sensText-${sensLevel.toLowerCase()}`}>{sensLevel}</span>
+          </div>
+          {distinctSecondary.length > 0 && (
+            <div className="srtMetaChip secondaryGroup">
+              <span className="srtMetaChipKey">Secondary labels</span>
+              <span className="srtSecondaryList">
+                {distinctSecondary.map((tag, idx) => (
+                  <span key={idx} className="srtSecondaryMuted">{toText(tag)}</span>
+                ))}
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {/* 2. COMPACT TAB STRIP */}
+      {/* Navigation Tabs */}
       <div className="tabStrip" style={{ marginTop: '12px', marginBottom: '12px' }}>
         <button
           type="button"
           className={`tabPill${activeTab === 'decision' ? ' active' : ''}`}
           onClick={() => setActiveTab('decision')}
         >
-          Classification &amp; Routing Decision
+          Classification &amp; Governance
         </button>
         <button
           type="button"
           className={`tabPill${activeTab === 'signals' ? ' active' : ''}`}
           onClick={() => setActiveTab('signals')}
         >
-          Explainable Signals ({signals.length})
+          Audit Evidence ({signals.length})
         </button>
         <button
           type="button"
@@ -281,213 +361,213 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
         </button>
       </div>
 
-      {/* TAB 1: CLASSIFICATION & ROUTING DECISION */}
+      {/* TAB 1: STRUCTURED HIERARCHY B -> C -> D -> E -> F */}
       {activeTab === 'decision' && (
-        <div className="srtTabBody">
-          {/* SMART TAXONOMY HIERARCHY BREADCRUMB */}
-          {taxonomy.length > 0 && (
-            <div className="srtTaxonomyBar">
-              <span className="srtTaxLabel">TAXONOMY HIERARCHY:</span>
-              <div className="srtTaxNodes">
-                {taxonomy.map((node, idx) => (
-                  <div key={idx} className="srtTaxNodeWrap">
-                    <span className={`srtTaxNode ${idx === taxonomy.length - 1 ? 'leaf' : ''}`}>
-                      <span className="srtTaxLvl">L{idx + 1}</span>
-                      <strong>{toText(node)}</strong>
-                    </span>
-                    {idx < taxonomy.length - 1 && <span className="srtTaxArrow">→</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="srtSectionsStack">
+          {/* B. Classification Explanation */}
+          {summary && (
+            <section className="srtSection">
+              <h3 className="srtHeading">Classification Explanation</h3>
+              <p className="srtBodyText">{summary}</p>
+            </section>
           )}
 
-          {/* BALANCED 2-COLUMN DIMENSION PANELS */}
-          <div className="srtDimGrid">
-            {/* LEFT DIMENSION: CANDIDATE RANKINGS & REJECTION ANALYSIS */}
-            <div className="srtSectionCard">
-              <div className="srtSectionHead">DIMENSION 1: CANDIDATE COMPARISON &amp; EVALUATION</div>
-              <div className="srtSubNote">Multi-criteria ranking scores (0–100) — not uncalibrated probabilities</div>
-              <div className="srtCandList">
-                {(candidates.length > 0 ? candidates : [
-                  { category: 'Knowledge Article', subtype: 'Reference Guide', ranking_score: 65, status: 'Primary Decision', score_margin: '+10 pts' },
-                  { category: 'Technical Documentation', subtype: 'Technical Guide', ranking_score: 55, status: 'Secondary Candidate', score_margin: '-10 pts' }
-                ]).map((item, i) => {
-                  const score = toPct(item?.ranking_score ?? item?.confidence, 0)
-                  const isTop = i === 0
-                  return (
-                    <div key={i} className={`srtCandCard ${isTop ? 'top' : ''}`}>
-                      <div className="srtCandHead">
-                        <div className="srtCandTitleGroup">
-                          <strong className="srtCandName">{toText(item?.category, 'Candidate')}</strong>
-                          {item?.subtype && <span className="candSub">{toText(item.subtype)}</span>}
-                          <span className={`srtCandStatus ${isTop ? 'sel' : 'rej'}`}>
-                            {toText(item?.status, isTop ? 'Primary Decision' : 'Secondary Candidate')}
-                          </span>
-                        </div>
-                        <div className="srtScoreWrap">
-                          <span className="srtCandScore">{score}</span>
-                          <span className="srtScoreType">score</span>
-                          {item?.score_margin && (
-                            <span className={`srtScoreMargin ${isTop ? 'plus' : 'minus'}`}>
-                              {toText(item.score_margin)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="barTrack">
-                        <div
-                          className="barFill"
-                          style={{
-                            width: `${Math.max(6, score)}%`,
-                            background: isTop ? 'linear-gradient(90deg, #10b981, #38bdf8)' : 'linear-gradient(90deg, #0284c7, #64748b)'
-                          }}
-                        />
-                      </div>
-                      {item?.reasoning && <div className="barDetail">{toText(item.reasoning)}</div>}
-                      {!isTop && item?.rejection_reason && (
-                        <div className="srtRejectReason">
-                          <strong>Why Secondary:</strong> {toText(item.rejection_reason)}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="srtRankingFootnote">
-                Illustrative ranking scores representing multi-criteria relevance across enterprise taxonomy, not independent calibrated probabilities.
-              </div>
-
-              {/* INLINE AMBIGUITY EVALUATION STRIP */}
-              <div className="srtAmbiguityInline">
-                <div className="srtAmbInlineTop">
-                  <span>AMBIGUITY ANALYSIS:</span>
-                  <strong className={ambLevel.toLowerCase() === 'high' ? 'amber' : (ambLevel.toLowerCase() === 'moderate' ? 'cyan' : 'green')}>
-                    {ambScore}/100 · {ambLevel}
-                  </strong>
-                </div>
-
-                <p className="srtAmbInlineText">
-                  {toText(ambiguity.reasoning, 'Competing categories have overlapping characteristics. Additional contextual analysis is recommended.')}
-                </p>
-
-                {ambiguity?.calculation_breakdown && (
-                  <div className="srtAmbCalcBox">
-                    <div className="srtAmbCalcHead">
-                      <span className="srtAmbCalcIcon">∑</span>
-                      <span>Verified Ambiguity Formula &amp; Factors:</span>
-                    </div>
-                    <code className="srtAmbFormula">{ambiguity.calculation_breakdown.formula || ambiguity.formula}</code>
-                    <div className="srtAmbFactorsGrid">
-                      <div className="srtAmbFactorItem">
-                        <small>Competition</small>
-                        <strong>+{ambiguity.calculation_breakdown.competition_factor}</strong>
-                      </div>
-                      <div className="srtAmbFactorItem">
-                        <small>Uncertainty</small>
-                        <strong>+{ambiguity.calculation_breakdown.uncertainty_factor}</strong>
-                      </div>
-                      <div className="srtAmbFactorItem">
-                        <small>Conflict</small>
-                        <strong>+{ambiguity.calculation_breakdown.conflicting_signals_factor}</strong>
-                      </div>
-                      <div className="srtAmbFactorItem">
-                        <small>Overlap</small>
-                        <strong>+{ambiguity.calculation_breakdown.taxonomy_overlap_factor}</strong>
-                      </div>
-                      <div className="srtAmbFactorItem mit">
-                        <small>Mitigation</small>
-                        <strong>-{ambiguity.calculation_breakdown.evidence_mitigation_factor}</strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {deepRetry?.performed && (
-                  <div className="srtDeepRetryBox">
-                    <div className="srtDeepRetryHead">
-                      <span className="srtDeepRetryIcon">⚡</span>
-                      <strong>AUTONOMOUS DEEP-CONTEXT RESOLUTION</strong>
-                    </div>
-                    <p className="srtDeepRetryBody">
-                      {toText(deepRetry.analysis, 'The title identifies the document as a beginner study guide. Its educational purpose supports Knowledge Article and Training Note classifications. Technical explanations provide additional evidence for Technical Documentation, but the primary purpose is learning rather than technical implementation.')}
-                    </p>
-                    <div className="srtDeepRetryFoot">
-                      <span>Outcome: <strong>Auto-Route Approved</strong> (No human exception queue needed)</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* RIGHT DIMENSION: AUTONOMOUS ROUTING EXECUTION & GOVERNANCE */}
-            <div className="srtSectionCard">
-              <div className="srtSectionHead">DIMENSION 2: TARGET REPOSITORY &amp; GOVERNANCE CLEARANCE</div>
-              <div className="srtSubNote">Deterministic access policies and confirmed storage destination</div>
-
-              <div className="srtDestBox">
-                <div className="srtDestHead">
-                  <div className="srtDestIcon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="srtDestTitle">{toText(autoRoute.destination_repository, 'Enterprise Knowledge Base')}</div>
-                    <code className="srtDestPath">{toText(autoRoute.destination_path, '/Enterprise-Knowledge/Help-Enablement/Reference-Guides/')}</code>
-                  </div>
-                </div>
-
-                <div className="srtDestMetaGrid">
-                  <div className="srtDestMetaItem">
-                    <span className="srtDestMetaKey">Department Owner</span>
-                    <strong className="srtDestMetaVal">{toText(autoRoute.department, 'Enablement & Support')}</strong>
-                  </div>
-                  <div className="srtDestMetaItem">
-                    <span className="srtDestMetaKey">Retention Policy</span>
-                    <strong className="srtDestMetaVal">{toText(sensitivity.retention_policy || autoRoute.retention_tier, 'Apply verified training-material retention policy (5 Years)')}</strong>
-                  </div>
-                  <div className="srtDestMetaItem">
-                    <span className="srtDestMetaKey">Access Permission</span>
-                    <strong className="srtDestMetaVal">{accessScope}</strong>
-                  </div>
-                  <div className="srtDestMetaItem">
-                    <span className="srtDestMetaKey">Policy Clearance</span>
-                    <strong className="srtDestMetaVal" style={{ color: sensitivity.access_control_cleared !== false ? '#34d399' : '#f87171' }}>
-                      {sensitivity.access_control_cleared !== false ? 'Eligible for Automated Routing' : 'Restricted (Blocked)'}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="srtDestReason">
-                  <strong>Execution Detail:</strong> {toText(autoRoute.execution_reason, 'Eligible for automated routing. Autonomously routed based on verified repository policy and deep-context synthesis.')}
-                </div>
-              </div>
-
-              {/* SENSITIVITY CLASSIFICATION COMPACT STRIP (SEPARATED FROM ACCESS PERMISSIONS) */}
-              <div className="srtSensCompactBox">
-                <div className="srtSensCompactHead">
-                  <span>DATA SENSITIVITY TIER:</span>
-                  <strong className={`srtSensTag ${sensLevel.toLowerCase()}`}>{sensLevel.toUpperCase()}</strong>
-                </div>
-                <div className="srtHeatStripCompact">
-                  {['Public', 'Internal', 'Confidential', 'Restricted'].map(lvl => {
-                    const isActive = sensLevel.toLowerCase() === lvl.toLowerCase()
+          {/* C. Candidate Evaluation */}
+          <section className="srtSection">
+            <h3 className="srtHeading">Candidate Evaluation</h3>
+            <div className="srtTableWrap">
+              <table className="srtCandTable">
+                <thead>
+                  <tr>
+                    <th>Candidate</th>
+                    <th>Role</th>
+                    <th className="num">Relevance Score</th>
+                    <th>Evidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(candidates.length > 0 ? candidates : [
+                    { category: primaryCategory, status: 'Primary', ranking_score: primaryRankScore ?? confidence, reasoning: 'Primary taxonomy match' },
+                  ]).map((item, i) => {
+                    const score = toPct(item?.ranking_score ?? item?.confidence, 0)
+                    const isPrimary = i === 0 || String(item?.status || '').toLowerCase().includes('primary')
+                    const evidence = toText(item?.reasoning || item?.rejection_reason, '—')
                     return (
-                      <span key={lvl} className={`srtHeatPill ${isActive ? 'active' : ''} lvl-${lvl.toLowerCase()}`}>
-                        <span>{lvl}</span>
-                        {isActive && <CheckIcon />}
-                      </span>
+                      <tr key={i} className={isPrimary ? 'rowPrimary' : ''}>
+                        <td>
+                          <span className={isPrimary ? 'candNamePrimary' : 'candNameSecondary'}>
+                            {toText(item?.category, 'Candidate')}
+                          </span>
+                          {item?.subtype && <span className="candSubInline"> ({toText(item.subtype)})</span>}
+                        </td>
+                        <td>
+                          <span className={`roleTag ${isPrimary ? 'primary' : 'secondary'}`}>
+                            {isPrimary ? 'Primary' : 'Secondary'}
+                          </span>
+                        </td>
+                        <td className="num mono">{score} / 100</td>
+                        <td className="candEvidenceCell">{evidence}</td>
+                      </tr>
                     )
                   })}
+                </tbody>
+              </table>
+            </div>
+            <p className="srtFootnote">
+              Relevance scores (0–100) are multi-criteria taxonomy ranking scores, not calibrated probabilities.
+              {candidateMargin !== null && ` The ${candidateMargin}-point candidate margin represents a ranking difference between the top two candidates.`}
+            </p>
+          </section>
+
+          {/* D. Ambiguity Assessment */}
+          <section className="srtSection" id="srt-ambiguity-section">
+            <div className="srtSectionHeaderRow">
+              <h3 className="srtHeading">Ambiguity Assessment</h3>
+              <span className={`srtAmbBadge lvl-${ambLevel.toLowerCase()}`}>
+                {ambScore}/100 · {ambLevel}
+              </span>
+            </div>
+
+            <div className="srtAmbMeterTrack" aria-label={`Ambiguity score ${ambScore} out of 100`}>
+              <div
+                className={`srtAmbMeterFill lvl-${ambLevel.toLowerCase()}`}
+                style={{ width: `${Math.max(4, ambScore)}%` }}
+              />
+            </div>
+
+            <div className="srtMeasureStrip">
+              {hasCalibratedConfidence && (
+                <div className="srtMeasureItem">
+                  <span className="srtMeasureLabel">Calibrated Confidence</span>
+                  <span className="srtMeasureVal">{confidence}%</span>
                 </div>
-                <p className="srtSensPolicyText">
-                  {toText(sensitivity.data_handling_policy, 'Internal data handling policy verified · Access permitted for authenticated enterprise users.')}
-                </p>
+              )}
+              {primaryRankScore !== null && (
+                <div className="srtMeasureItem">
+                  <span className="srtMeasureLabel">Primary Ranking Score</span>
+                  <span className="srtMeasureVal">{primaryRankScore} / 100</span>
+                </div>
+              )}
+              {candidateMargin !== null && (
+                <div className="srtMeasureItem">
+                  <span className="srtMeasureLabel">Candidate Margin</span>
+                  <span className="srtMeasureVal">{candidateMargin} pts</span>
+                </div>
+              )}
+              <div className="srtMeasureItem">
+                <span className="srtMeasureLabel">Ambiguity Score</span>
+                <span className="srtMeasureVal">{ambScore} / 100 ({ambLevel})</span>
               </div>
             </div>
-          </div>
+
+            {ambiguity.reasoning && (
+              <p className="srtBodyText" style={{ marginTop: '8px' }}>{toText(ambiguity.reasoning)}</p>
+            )}
+
+            {conflictingCueList.length > 0 && (
+              <ul className="srtEvidenceBullets">
+                {conflictingCueList.slice(0, 3).map((cue, idx) => (
+                  <li key={idx}>{toText(cue)}</li>
+                ))}
+              </ul>
+            )}
+
+            {(contributingFactors.length > 0 || mitigationValue > 0) && (
+              <div className="srtAmbFactorsRow">
+                {contributingFactors.map((f, idx) => (
+                  <span key={idx} className="srtFactorChip">
+                    {f.label}: +{f.val}
+                  </span>
+                ))}
+                {mitigationValue > 0 && (
+                  <span className="srtFactorChip mitigation">
+                    Document evidence reduction: -{mitigationValue}
+                  </span>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* E. Autonomous Resolution & Routing */}
+          <section className="srtSection">
+            <h3 className="srtHeading">Autonomous Resolution &amp; Routing</h3>
+            <div className="srtKvGrid">
+              <div className="srtKvRow">
+                <span className="srtKvKey">Initial State</span>
+                <span className="srtKvVal">
+                  {ambLevel} ambiguity ({ambScore}/100)
+                  {candidateMargin !== null ? ` · ${candidateMargin}-point ranking margin` : ''}
+                </span>
+              </div>
+              <div className="srtKvRow">
+                <span className="srtKvKey">Deep-Context Analysis</span>
+                <span className="srtKvVal">
+                  {deepRetry?.performed
+                    ? `Executed (${deepTriggerText || 'secondary context check'})`
+                    : 'Not required'}
+                </span>
+              </div>
+              <div className="srtKvRow">
+                <span className="srtKvKey">Evidence Examined</span>
+                <span className="srtKvVal">
+                  {deepRetry?.performed
+                    ? (deepResolutionText || (deepIsDistinct ? deepAnalysisText : `Verified primary intent and taxonomy fit for ${primaryCategory}.`))
+                    : `Primary candidate ranking met threshold without deep-context retry.`}
+                </span>
+              </div>
+              <div className="srtKvRow">
+                <span className="srtKvKey">Routing Decision</span>
+                <span className="srtKvVal">
+                  <span className={`srtInlineStatus ${isException ? 'exception' : 'routed'}`}>
+                    {isException
+                      ? 'Routed to Exception Review Queue'
+                      : 'Auto-Route Approved (Routing decision logged to audit ledger)'}
+                  </span>
+                </span>
+              </div>
+              <div className="srtKvRow">
+                <span className="srtKvKey">Policy Justification</span>
+                <span className="srtKvVal">{cleanPolicyJustification}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* F. Repository & Governance */}
+          <section className="srtSection" id="srt-governance-section">
+            <h3 className="srtHeading">Repository &amp; Governance</h3>
+            <div className="srtGovGrid">
+              <div className="srtGovItem">
+                <span className="srtGovKey">Destination Repository</span>
+                <span className="srtGovVal">{toText(autoRoute.destination_repository) || 'Not verified'}</span>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Department Owner</span>
+                <span className="srtGovVal">{toText(autoRoute.department) || 'Not verified'}</span>
+              </div>
+              <div className="srtGovItem full">
+                <span className="srtGovKey">Full Destination Path</span>
+                <code className="srtGovCode">{toText(autoRoute.destination_path) || 'Not verified'}</code>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Retention Policy</span>
+                <span className="srtGovVal">{toText(sensitivity.retention_policy || autoRoute.retention_tier) || 'Not verified'}</span>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Data Sensitivity</span>
+                <span className="srtGovVal">{sensLevel}</span>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Access Permissions</span>
+                <span className="srtGovVal">{accessScope}</span>
+              </div>
+              <div className="srtGovItem">
+                <span className="srtGovKey">Policy Clearance</span>
+                <span className={`srtGovVal ${sensitivity.access_control_cleared === false ? 'textWarn' : sensitivity.access_control_cleared === true ? 'textOk' : ''}`}>
+                  {clearanceLabel}
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
@@ -575,28 +655,30 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails, onF
         </div>
       )}
 
-      {/* 4. CONTEXT-AWARE FOLLOW-UPS */}
-      {followups.length > 0 && onFollowUp && (
-        <div className="followUpWrap">
-          <span className="followLabel">SUGGESTED INQUIRIES &amp; NEXT ACTIONS:</span>
-          <div className="followChips">
-            {followups.map((q, i) => {
-              const qStr = toText(q)
-              if (!qStr) return null
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className="followChip"
-                  onClick={() => onFollowUp(qStr)}
-                >
-                  {qStr}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {/* Three Working Text Actions */}
+      <div className="srtActionRow" aria-label="Inspection actions">
+        <button
+          type="button"
+          className="followChip"
+          onClick={() => jumpToSection('signals', `srt-card-${traceId || 'active'}`)}
+        >
+          View classification evidence
+        </button>
+        <button
+          type="button"
+          className="followChip"
+          onClick={() => jumpToSection('decision', 'srt-ambiguity-section')}
+        >
+          Inspect ambiguity factors
+        </button>
+        <button
+          type="button"
+          className="followChip"
+          onClick={() => jumpToSection('decision', 'srt-governance-section')}
+        >
+          View repository governance policy
+        </button>
+      </div>
     </div>
   )
 }

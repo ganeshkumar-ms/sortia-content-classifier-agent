@@ -2753,8 +2753,14 @@ html, body {
 .srtDimGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  align-items: start;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.srtDimGrid .srtSectionCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .srtCandList {
@@ -2916,40 +2922,47 @@ html, body {
 }
 
 .srtSimRepoNote {
-  font-size: 11px;
+  font-size: 11.5px;
+  line-height: 1.45;
   color: #94a3b8;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 175px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
 }
 
 .srtSimRepoNote strong {
   color: #e2e8f0;
+  font-weight: 600;
 }
 
 .fullShaMono {
   font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: 10.5px;
+  line-height: 1.45;
   color: #38bdf8;
   word-break: break-all;
   display: block;
-  margin-top: 3px;
-  padding: 4px 6px;
+  width: 100%;
+  padding: 7px 9px;
   background: rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 6px;
 }
 
 .srtDupStatusRow {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .srtDupStatusItem {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
+  display: grid;
+  grid-template-columns: 175px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 
 .srtDupKey {
@@ -3091,8 +3104,21 @@ html, body {
 .srtMetaCompactList {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
   font-size: 11.5px;
+}
+
+.srtMetaCompactList > div {
+  display: grid;
+  grid-template-columns: 155px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.srtMetaCompactList > div:last-child {
+  border-bottom: none;
 }
 
 .srtMetaCompactList span {
@@ -3318,22 +3344,26 @@ html, body {
 
 .srtSimInlineBox {
   margin-top: 10px;
-  padding: 9px 10px;
+  padding: 12px;
   border-radius: 8px;
   background: rgba(2, 14, 26, 0.5);
   border: 1px solid rgba(148, 163, 184, 0.18);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .srtSimInlineHead {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
   font-size: 10px;
   font-weight: 800;
   color: #7dd3fc;
   letter-spacing: 0.6px;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .srtSimInlineHead code {
@@ -5281,4 +5311,486 @@ html, body {
   font-weight: 800;
   color: #38bdf8;
   letter-spacing: 0.6px;
+}
+
+/* ======================================================== */
+/* SORTIA REFINED ENTERPRISE RESULT HIERARCHY (A - F)       */
+/* ======================================================== */
+.srtRefined .srtBlock {
+  background: rgba(5, 22, 40, 0.72);
+  border: 1px solid rgba(7, 140, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.srtDocRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.srtDocName {
+  font-size: 12.5px;
+  color: #94a3b8;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.srtRoutePill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.srtRoutePill.routed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.srtRoutePill.exception {
+  background: rgba(250, 204, 21, 0.14);
+  color: #fde047;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+.srtPrimaryRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.srtPrimaryDecision {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.2px;
+}
+
+.srtSubtypeLabel {
+  font-size: 13px;
+  color: #7dd3fc;
+  font-weight: 500;
+}
+
+.srtTaxChain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.srtTaxStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.srtTaxParent {
+  color: #94a3b8;
+}
+
+.srtTaxLeaf {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.srtTaxSep {
+  color: #475569;
+}
+
+.srtMetaChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(7, 140, 255, 0.14);
+}
+
+.srtMetaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.srtMetaChipKey {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.srtMetaChipVal {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.srtSecondaryList {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.srtSecondaryMuted {
+  font-size: 11.5px;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.srtSectionsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.srtSection {
+  background: rgba(5, 22, 40, 0.6);
+  border: 1px solid rgba(7, 140, 255, 0.16);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.srtHeading {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #7dd3fc;
+}
+
+.srtSectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.srtSectionHeaderRow .srtHeading {
+  margin-bottom: 0;
+}
+
+.srtBodyText {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.srtTableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.srtCandTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.srtCandTable th {
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(7, 140, 255, 0.2);
+}
+
+.srtCandTable td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(7, 140, 255, 0.1);
+  vertical-align: top;
+  color: #cbd5e1;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.srtCandTable th {
+  white-space: nowrap;
+}
+
+.srtCandTable tr:last-child td {
+  border-bottom: none;
+}
+
+.srtCandTable .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.candNamePrimary {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.candNameSecondary {
+  color: #94a3b8;
+}
+
+.candSubInline {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.roleTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.roleTag.primary {
+  background: rgba(7, 140, 255, 0.18);
+  color: #7dd3fc;
+  border: 1px solid rgba(7, 140, 255, 0.35);
+}
+
+.roleTag.secondary {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.candEvidenceCell {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.srtFootnote {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.srtAmbBadge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 6px;
+}
+
+.srtAmbBadge.lvl-low {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+}
+
+.srtAmbBadge.lvl-moderate {
+  background: rgba(250, 204, 21, 0.14);
+  color: #fde047;
+}
+
+.srtAmbBadge.lvl-high {
+  background: rgba(249, 115, 22, 0.16);
+  color: #fb923c;
+}
+
+.srtAmbMeterTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.srtAmbMeterFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.srtAmbMeterFill.lvl-low { background: #10b981; }
+.srtAmbMeterFill.lvl-moderate { background: #facc15; }
+.srtAmbMeterFill.lvl-high { background: #f97316; }
+
+.srtMeasureStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.srtMeasureItem {
+  background: rgba(2, 12, 24, 0.45);
+  border: 1px solid rgba(7, 140, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.srtMeasureLabel {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.srtMeasureVal {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.srtAmbFactorsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.srtFactorChip {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.srtFactorChip.mitigation {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.srtKvGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.srtKvRow {
+  display: grid;
+  grid-template-columns: 165px 1fr;
+  gap: 12px;
+  font-size: 13px;
+  align-items: baseline;
+}
+
+.srtKvKey {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.srtKvVal {
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.srtInlineStatus.routed {
+  color: #6ee7b7;
+  font-weight: 600;
+}
+
+.srtInlineStatus.exception {
+  color: #fde047;
+  font-weight: 600;
+}
+
+.srtGovGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.srtGovItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.srtGovItem.full {
+  grid-column: 1 / -1;
+}
+
+.srtGovKey {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.srtGovVal {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.srtGovVal.textOk { color: #6ee7b7; }
+.srtGovVal.textWarn { color: #fde047; }
+
+.srtGovCode {
+  font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  color: #7dd3fc;
+  background: rgba(2, 12, 24, 0.55);
+  border: 1px solid rgba(7, 140, 255, 0.16);
+  padding: 5px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.srtFollowupDetails {
+  margin-top: 12px;
+  border-top: 1px solid rgba(7, 140, 255, 0.14);
+  padding-top: 10px;
+}
+
+.srtFollowupSummary {
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.srtTaxPrefix {
+  color: #64748b;
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.srtEvidenceBullets {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.srtActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(7, 140, 255, 0.14);
+}
+
+@media (max-width: 640px) {
+  .srtKvRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .srtGovGrid {
+    grid-template-columns: 1fr;
+  }
 }

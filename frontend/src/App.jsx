@@ -349,17 +349,34 @@ export default function App() {
       return [newSess, ...prev.filter(s => s.id !== sid)]
     })
 
+    const isRetryOrRefine = !fileObj && /\b(retry|try again|re-?analyze|re-?classify|redo|more specific|be more specific|more detail|deeper)\b/i.test(cleanText)
+    const priorFileMsg = isRetryOrRefine
+      ? [...prevList].reverse().find(m => m.role === 'user' && typeof File !== 'undefined' && m.file instanceof File)
+      : null
+    const effectiveFile = fileObj || priorFileMsg?.file || null
+
     const apiHistory = prevList.slice(-6).map(m => ({
       role: m.role === 'ai' ? 'assistant' : 'user',
       content: m.role === 'ai'
-        ? (m.data?.summary || m.data?.message || m.data?.primary_category || 'Classification generated')
+        ? (m.data?.type === 'classification'
+            ? JSON.stringify({
+                title: m.data.classification_title,
+                primary_category: m.data.primary_category,
+                secondary_classifications: m.data.secondary_classifications,
+                summary: m.data.summary,
+                candidates: (m.data.candidates || []).slice(0, 4),
+                ambiguity: m.data.ambiguity,
+                routing: m.data.routing_decision,
+                governance: m.data.governance,
+              }).slice(0, 2400)
+            : (m.data?.summary || m.data?.message || m.data?.primary_category || 'Classification generated'))
         : (m.content || (m.file ? `Uploaded ${m.file.name}` : ''))
     }))
 
     try {
       const [result] = await Promise.all([
         classifyContent({
-          file: fileObj || null,
+          file: effectiveFile,
           text: cleanText,
           conversationHistory: apiHistory
         }),
