@@ -44,26 +44,29 @@ PREDEFINED_CATEGORIES = [
 SORTIA_SYSTEM_PROMPT = """You are SORTIA, an Enterprise Autonomous Content Intelligence & Classification Agent ("Know the type. Choose the path.").
 Your responsibility extends beyond identifying document categories: you independently understand, classify across hierarchical levels, validate, enrich with metadata/entities, scan for security/credentials/PII, detect duplicates/versions, resolve ambiguity via deep-context synthesis, and route documents using configured taxonomies and governance policies.
 
-=== ENTERPRISE CONTENT CATEGORIES (CORE + BANKING / LENDING / AGRICULTURE) ===
-1. Invoice (billing demand, itemized tax invoice, purchase order invoice, fee receipt)
-2. Statement (bank statement, account summary, policy schedule, portfolio statement)
-3. Policy (HR policy, compliance policy, governance rulebook, security standard, privacy notice)
-4. Procedure (SOP, claim settlement workflow, onboarding runbook, operational checklist)
-5. Customer Communication (missing document request, approval notice, renewal reminder, dispute reply)
-6. Claim Form (FNOL intake, reimbursement form, incident submission template)
-7. Contract (MSA, NDA, SLA, vendor agreement, terms of service)
-8. Technical Documentation (API reference, architecture guide, technical specification, SDK README)
-9. Project Configuration File (package.json, vite.config, .env, yaml/toml/json project config)
-10. Marketing Content (product launch brief, landing page copy, brochure, campaign announcement)
-11. Knowledge Article (FAQ, help center guide, troubleshooting article, study guide, reference guide)
+=== ENTERPRISE CONTENT CATEGORIES (SPECIFIC DOCUMENT TAXONOMY) ===
+1. Bank Statement (checking/savings/current account statement, IBAN, SWIFT, opening/closing balance, debit/credit transactions)
+2. Credit Card Statement (card statement, minimum payment due, credit limit, billing cycle, APR)
+3. Policy Form (insurance policy form, policy schedule, policyholder, sum insured, coverage, deductible, premium, endorsement)
+4. Agreement (service agreement, MSA, NDA, vendor agreement, partnership agreement, terms of agreement, binding contract)
+5. Loan Agreement (facility agreement, lending contract, borrower, lender, principal amount, promissory terms)
+6. Financial Statement (audited balance sheet, profit & loss, income statement, cash flow statement)
+7. Invoice (billing demand, itemized tax invoice, purchase order invoice, fee receipt)
+8. Tax Return (tax return, W-2, 1099, 1040, ITR, GST return, tax assessment, taxable income)
+9. Claim Form (FNOL intake, reimbursement form, incident submission template)
+10. Customer Communication (missing document request, approval notice, renewal reminder, dispute reply)
+11. KYC Documentation (customer due diligence, identity/beneficial ownership verification, AML)
 12. Loan Application (commercial/retail lending application, facility request)
-13. Financial Statement (audited balance sheet, P&L, cash flow statement)
-14. Credit Assessment (credit risk analysis, underwriting memo, borrower rating)
-15. Loan Agreement (facility agreement, lending contract, promissory terms)
-16. Collateral Valuation (appraisal report, security/asset valuation, mortgage valuation)
-17. Agricultural Business Record (farm operations, agri-business financial/crop/livestock record)
-18. KYC Documentation (customer due diligence, identity/beneficial ownership verification)
-19. Covenant Monitoring Report (financial covenant tracking, compliance ratio monitoring)
+13. Credit Assessment (credit risk analysis, underwriting memo, borrower rating)
+14. Collateral Valuation (appraisal report, security/asset valuation, mortgage valuation)
+15. Covenant Monitoring Report (financial covenant tracking, compliance ratio monitoring)
+16. Policy (HR policy, compliance policy, governance rulebook, security standard, privacy notice)
+17. Procedure (SOP, claim settlement workflow, onboarding runbook, operational checklist)
+18. Agricultural Business Record (farm operations, agri-business financial/crop/livestock record)
+19. Technical Documentation (API reference, architecture guide, technical specification, SDK README)
+20. Project Configuration File (package.json, vite.config, .env, yaml/toml/json project config)
+21. Marketing Content (product launch brief, landing page copy, brochure, campaign announcement)
+22. Knowledge Article (FAQ, help center guide, troubleshooting article, study guide, reference guide)
 
 === ENHANCEMENT & GOVERNANCE PRINCIPLES ===
 - Hierarchical & Multi-Label: Classify across 3-4 taxonomy levels without inventing categories. Distinguish multi-criteria ranking scores (0-100) from calibrated confidence.
@@ -351,13 +354,18 @@ def _enforce_ambiguity_guardrail(result: dict) -> dict:
 LEDGER_PATH = (Path('/tmp') if os.path.exists('/tmp') else Path(__file__).resolve().parent.parent / 'uploads') / 'sortia_routing_ledger.json'
 
 DEFAULT_TAXONOMY_MAP = {
+    'Bank Statement': ['Banking & Treasury', 'Account Statements', 'Bank Statement', 'Checking / Savings Bank Statement'],
+    'Credit Card Statement': ['Banking & Cards', 'Card Billing', 'Credit Card Statement', 'Monthly Credit Card Statement'],
+    'Policy Form': ['Insurance & Underwriting', 'Policy Administration', 'Policy Form', 'Insurance Policy Form & Schedule'],
+    'Agreement': ['Legal & Procurement', 'Contracts & Agreements', 'Agreement', 'Executed Commercial / Service Agreement'],
+    'Tax Return': ['Finance & Tax', 'Tax Compliance', 'Tax Return', 'Statutory Tax Return & Filing'],
     'Invoice': ['Finance & Billing', 'Accounts Payable', 'Invoice', 'Vendor Invoice & Receipt'],
     'Statement': ['Finance & Accounting', 'Account Reporting', 'Statement', 'Periodic Statement & Schedule'],
     'Policy': ['Governance & Compliance', 'Enterprise Policies', 'Policy', 'Standard Compliance Policy'],
     'Procedure': ['Operations & Delivery', 'Standard Operating Procedures', 'Procedure', 'Workflow Runbook'],
     'Customer Communication': ['Customer Operations', 'Outbound Communications', 'Customer Communication', 'Customer Notice'],
     'Claim Form': ['Insurance Operations', 'Claims Intake', 'Claim Form', 'Claim Submission'],
-    'Contract': ['Legal & Procurement', 'Agreements & SLAs', 'Contract', 'Binding Agreement'],
+    'Contract': ['Legal & Procurement', 'Agreements & SLAs', 'Agreement', 'Binding Agreement'],
     'Technical Documentation': ['Technology', 'Engineering & Architecture', 'Technical Documentation', 'Technical Specification'],
     'Project Configuration File': ['Technology', 'Web Development', 'Technical Documentation', 'Project Configuration File'],
     'Marketing Content': ['Brand & Growth', 'Campaign Assets', 'Marketing Content', 'Marketing Collateral'],
@@ -373,6 +381,11 @@ DEFAULT_TAXONOMY_MAP = {
 }
 
 ROUTING_RULES_MAP = {
+    'Bank Statement': ('Banking & Treasury Archive', '/Banking/Bank_Statements/', 'Treasury & Reconciliation', 'Bank-Statement-Sync'),
+    'Credit Card Statement': ('Banking & Cards Archive', '/Banking/Credit_Card_Statements/', 'Card Operations', 'Card-Statement-Sync'),
+    'Policy Form': ('Insurance Policy Vault', '/Insurance/Policy_Forms/', 'Policy Administration', 'Policy-Form-Index'),
+    'Agreement': ('CLM Legal Contracts Vault', '/Legal/Agreements/', 'Legal & Procurement', 'Agreement-Metadata-Sync'),
+    'Tax Return': ('Tax & Statutory Archive', '/Finance/Tax_Returns/', 'Tax Compliance', 'Tax-Filing-Archive'),
     'Invoice': ('Finance ERP & AP Repository', '/Finance/Accounts-Payable/Invoices/', 'Finance Operations', 'AP-3-Way-Match'),
     'Statement': ('Financial Reporting Archive', '/Finance/Statements/Archive/', 'Treasury & Reporting', 'Statement-Reconciliation'),
     'Policy': ('Compliance & Policy Registry', '/Governance/Policies/Active/', 'Risk & Compliance', 'Policy-Index-Sync'),
@@ -920,33 +933,69 @@ def _enrich_and_execute_routing(result: dict, text: str, file_name: str, started
 
 
 CATEGORY_SIGNALS = {
+    'Bank Statement': {
+        'keywords': [
+            'bank statement', 'account statement', 'checking account', 'savings account', 'current account',
+            'opening balance', 'closing balance', 'ending balance', 'available balance', 'iban', 'swift',
+            'routing number', 'sort code', 'account number', 'statement period', 'deposit', 'withdrawal',
+            'debit', 'credit', 'ledger balance', 'transaction history',
+        ],
+        'patterns': [
+            r'\b(?:bank|account)\s+statement\b',
+            r'\b(?:opening|closing|ending|available)\s+balance\b',
+            r'\b(?:iban|swift|bic|sort\s+code|routing\s+number)\b',
+            r'\b(?:debit|credit)\s+(?:amount|total|transactions?)\b',
+        ],
+    },
+    'Credit Card Statement': {
+        'keywords': ['credit card statement', 'minimum payment due', 'credit limit', 'card number', 'statement balance', 'billing cycle', 'apr'],
+        'patterns': [r'\b(?:credit\s+card\s+statement|minimum\s+payment\s+due|available\s+credit)\b'],
+    },
+    'Policy Form': {
+        'keywords': [
+            'policy form', 'insurance policy', 'policyholder', 'insured', 'sum insured', 'coverage',
+            'deductible', 'premium', 'endorsement', 'policy schedule', 'policy number', 'underwriter',
+            'beneficiary', 'effective date', 'expiration date', 'exclusions',
+        ],
+        'patterns': [
+            r'\b(?:policy\s+(?:form|schedule|number|no)|sum\s+insured|policyholder)\b',
+            r'\b(?:coverage\s+(?:limit|summary)|deductible|annual\s+premium)\b',
+        ],
+    },
+    'Agreement': {
+        'keywords': [
+            'agreement', 'service agreement', 'master services agreement', 'msa', 'non-disclosure', 'nda',
+            'whereas', 'hereinafter', 'indemnify', 'liability', 'sla', 'governing law', 'termination',
+            'counterparty', 'confidentiality', 'in witness whereof', 'parties agree', 'executed by',
+        ],
+        'patterns': [
+            r'\b(?:service|master\s+services|vendor|partnership|non-disclosure)\s+agreement\b',
+            r'\b(?:whereas|hereinafter|indemnif(?:y|ication)|governing\s+law|in\s+witness\s+whereof)\b',
+        ],
+    },
+    'Tax Return': {
+        'keywords': ['tax return', 'taxable income', 'irs', 'form 1040', 'w-2', '1099', 'itr', 'gst return', 'tax assessment', 'fiscal year'],
+        'patterns': [r'\b(?:tax\s+return|form\s+1040|w-2|1099|taxable\s+income)\b'],
+    },
     'Invoice': {
         'keywords': ['invoice', 'amount due', 'tax id', 'bill to', 'remit', 'subtotal', 'vat', 'gst', 'payment terms', 'due date'],
         'patterns': [r'\bINV[-\s#]?\d+', r'\b(?:amount\s+due|total\s+due|bill\s+to|remit\s+to)\b'],
     },
-    'Statement': {
-        'keywords': ['statement', 'opening balance', 'closing balance', 'transactions', 'account summary', 'billing period', 'statement date'],
-        'patterns': [r'\b(?:opening|closing|ending)\s+balance\b', r'\bstatement\s+(?:period|date|summary)\b'],
-    },
     'Policy': {
         'keywords': ['policy', 'compliance', 'mandatory', 'employees must', 'effective date', 'governance', 'prohibited', 'scope', 'enforcement'],
-        'patterns': [r'\b(?:policy\s+(?:id|no|number|#)|effective\s+date|shall\s+not|must\s+comply)\b'],
+        'patterns': [r'\b(?:policy\s+(?:id|no|number|#)|shall\s+not|must\s+comply)\b'],
     },
     'Procedure': {
         'keywords': ['step 1', 'procedure', 'sop', 'workflow', 'runbook', 'checklist', 'prerequisites', 'escalation'],
         'patterns': [r'\b(?:step\s*[1-9]|standard\s+operating\s+procedure|sop[-\s#]?\d*)\b'],
     },
     'Customer Communication': {
-        'keywords': ['dear customer', 'valued customer', 'dear ', 'missing document', 'please submit', 'important notice', 'your account', 'sincerely'],
+        'keywords': ['dear customer', 'valued customer', 'missing document', 'please submit', 'important notice', 'customer communication notice', 'sincerely'],
         'patterns': [r'\bdear\s+(?:valued\s+)?(?:customer|client|member|cardholder)\b'],
     },
     'Claim Form': {
-        'keywords': ['claim form', 'fnol', 'claimant', 'policy number', 'incident date', 'loss description', 'beneficiary', 'claim id'],
+        'keywords': ['claim form', 'fnol', 'claimant', 'incident date', 'loss description', 'claim id'],
         'patterns': [r'\b(?:claim\s+(?:form|number|id)|first\s+notice\s+of\s+loss|incident\s+date)\b'],
-    },
-    'Contract': {
-        'keywords': ['agreement', 'whereas', 'indemnify', 'liability', 'sla', 'governing law', 'termination', 'counterparty', 'confidentiality'],
-        'patterns': [r'\b(?:whereas|hereinafter|indemnif(?:y|ication)|governing\s+law|in\s+witness\s+whereof)\b'],
     },
     'Technical Documentation': {
         'keywords': ['api', 'lambda', 'endpoint', 'dynamodb', 'architecture', 'json', 'schema', 'specification', 'cli', 'sdk', 'deployment', 'dockerfile', 'terraform'],
@@ -1059,15 +1108,16 @@ def rule_based_classification_fallback(content: str, file_name: str = '') -> dic
         f"({hints['word_count']} words analyzed). Secondary candidate: {second_cat} ({second_conf}/100)."
     )
 
+    tax_entry = DEFAULT_TAXONOMY_MAP.get(best_cat, ['Enterprise Content', 'General Operations', best_cat, f'{best_cat} Document'])
     res = {
         'type': 'classification',
         'classification_title': title_base[:60],
-        'document_type_detected': 'Beginner Study Guide' if is_study_guide else f'{best_cat} Document',
+        'document_type_detected': 'Beginner Study Guide' if is_study_guide else tax_entry[3],
         'primary_category': best_cat,
         'secondary_classifications': [second_cat],
-        'taxonomy_hierarchy': ['Enterprise Knowledge', 'Help & Enablement', 'Reference Guide'] if best_cat == 'Knowledge Article' else DEFAULT_TAXONOMY_MAP.get(best_cat, ['Enterprise Content', best_cat]),
-        'subtype': 'Reference Guide' if best_cat == 'Knowledge Article' else 'Technical Specification',
-        'domain': 'Enterprise Cloud & Technology Training',
+        'taxonomy_hierarchy': tax_entry,
+        'subtype': 'Reference Guide' if best_cat == 'Knowledge Article' else tax_entry[3],
+        'domain': f'{tax_entry[0]} · {tax_entry[1]}',
         'confidence': conf,
         'confidence_calibration': 'Moderate' if conf <= 75 else 'High',
         'score_explanation': 'Illustrative candidate ranking scores (0-100) representing multi-criteria relevance across enterprise taxonomy, not independent calibrated probabilities.',

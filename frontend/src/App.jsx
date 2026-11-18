@@ -284,6 +284,12 @@ export default function App() {
   function handleLoadSession(id) {
     const sess = sessions.find(s => s.id === id)
     if (!sess) return
+    if (sess.isBulkBatch && sess.batchData) {
+      setDrawerOpen(false)
+      setActiveBulkBatch(sess.batchData)
+      setShowBulkModal(true)
+      return
+    }
     setCurrentSessionId(sess.id)
     setMessages(sess.messages || [])
     setTitle(sess.title || 'New conversation')
@@ -292,10 +298,6 @@ export default function App() {
     clearSelectedFile()
     setActiveViewerDoc(null)
     setView('chat')
-    if (sess.isBulkBatch && sess.batchData) {
-      setActiveBulkBatch(sess.batchData)
-      setShowBulkModal(true)
-    }
   }
 
   function handleRenameSession(id, newTitle) {
