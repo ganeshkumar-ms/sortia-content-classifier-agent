@@ -93,6 +93,8 @@ export default function BulkClassificationWorkspace({
   const folderInputRef = useRef(null)
   const similarLocInputRef = useRef(null)
   const pollIntervalRef = useRef(null)
+  const uploadedFileMapRef = useRef(new Map()) // Maps filename -> File object for real disk saving
+  const [storedOnDiskMsg, setStoredOnDiskMsg] = useState('')
 
   // Save/merge a batch into persistent history and notify parent App
   const upsertBatchInHistory = (batchObj) => {
@@ -206,6 +208,11 @@ export default function BulkClassificationWorkspace({
     setIsLoading(true)
     setError(null)
     setLocationSavedSuccess(false)
+    setStoredOnDiskMsg('')
+    // Keep File references so SORTIA can write them into the user's chosen local folder
+    filesToUpload.forEach(f => {
+      if (f && f.name) uploadedFileMapRef.current.set(f.name, f)
+    })
     try {
       const resp = await createBatch({
         files: filesToUpload,
@@ -248,6 +255,75 @@ export default function BulkClassificationWorkspace({
       setError(err.message || 'Failed to scan and ingest folder location.')
     } finally {
       setIsScanningPath(false)
+    }
+  }
+
+  const handlePickAndStoreSimilarDocs = async () => {
+    if (!currentBatch || similarDocClusters.length === 0) return
+    setError(null)
+    setStoredOnDiskMsg('')
+
+    if (typeof window === 'undefined' || typeof window.showDirectoryPicker !== 'function') {
+      setError('Your browser does not support direct folder writing. Please use Chrome or Edge on desktop.')
+      return
+    }
+
+    try {
+      setIsUpdatingLocation(true)
+      const rootDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      const folderDisplayPath = editLocationDraft.trim() || rootDirHandle.name
+
+      let writtenCount = 0
+      for (const grp of similarDocClusters) {
+        const catSlug = (grp.category || 'Classified').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'Classified'
+        const subDirHandle = await rootDirHandle.getDirectoryHandle(catSlug, { create: true })
+
+        for (const doc of grp.documents || []) {
+          const outName = (doc.standardized_filename || doc.original_filename || 'document.txt').replace(/[<>:"/\\|?*]+/g, '_')
+          const fileObj = uploadedFileMapRef.current.get(doc.original_filename)
+          const fileHandle = await subDirHandle.getFileHandle(outName, { create: true })
+          const writable = await fileHandle.createWritable()
+          if (fileObj) {
+            await writable.write(await fileObj.arrayBuffer())
+          } else {
+            const batchFile = (currentBatch.files || []).find(bf => bf.doc_id === doc.doc_id)
+            const summaryText = JSON.stringify(batchFile?.result || doc, null, 2)
+            await writable.write(new Blob([summaryText], { type: 'application/json' }))
+          }
+          await writable.close()
+          writtenCount += 1
+        }
+      }
+
+      setEditLocationDraft(folderDisplayPath)
+      try {
+        const updated = await updateBatchStorageLocation(currentBatch.batch_id, folderDisplayPath)
+        setCurrentBatch(updated)
+        upsertBatchInHistory(updated)
+      } catch {
+        // Fallback client-side update
+        const cleanLoc = folderDisplayPath.replace(/[\\/]+$/, '')
+        const sep = cleanLoc.includes('\\') && !cleanLoc.includes('/') ? '\\' : '/'
+        const updatedFiles = (currentBatch.files || []).map(f => {
+          const catSlug = (f.primary_category || 'Classified').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'Classified'
+          const stdName = f.standardized_filename || f.filename
+          const groupFolder = `${cleanLoc}${sep}${catSlug}${sep}`
+          return { ...f, similar_group_folder: groupFolder, destination_path: `${groupFolder}${stdName}` }
+        })
+        const localUpdated = { ...currentBatch, target_storage_location: cleanLoc, files: updatedFiles }
+        localUpdated.similar_document_groups = buildClientSimilarGroups(localUpdated)
+        setCurrentBatch(localUpdated)
+        upsertBatchInHistory(localUpdated)
+      }
+
+      setLocationSavedSuccess(true)
+      setStoredOnDiskMsg(`✓ Actually stored ${writtenCount} file(s) into ${similarDocClusters.length} similar-document subfolder(s) inside "${rootDirHandle.name}" on your computer!`)
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        setError(err?.message || 'Could not write files to the selected folder.')
+      }
+    } finally {
+      setIsUpdatingLocation(false)
     }
   }
 
@@ -496,8 +572,8 @@ export default function BulkClassificationWorkspace({
           {ingestMode === 'location' && (
             <div className="srtPathInputCard">
               <div className="srtPathHeader">
-                <strong>Enter Source Directory or Network File Location to Scan:</strong>
-                <p>Specify a local folder path on your system. SORTIA will crawl and classify all documents inside.</p>
+                <strong>Select a Local Folder on Your Computer (or Enter Server Path):</strong>
+                <p>Click <strong>Browse Local Folder</strong> to pick any folder on your Windows/Mac drive directly, or enter a server path.</p>
               </div>
               <div className="srtPathInputRow">
                 <div className="srtPathFieldWrap">
@@ -507,7 +583,7 @@ export default function BulkClassificationWorkspace({
                   <input
                     type="text"
                     className="srtPathInput"
-                    placeholder="e.g. C:\Users\Documents\Incoming_Files or D:\Archive\Unsorted_Batch"
+                    placeholder="e.g. C:\Users\Documents\Incoming_Files or click Browse Local Folder"
                     value={inputLocationPath}
                     onChange={e => setInputLocationPath(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleStartPathBatch() }}
@@ -515,11 +591,21 @@ export default function BulkClassificationWorkspace({
                 </div>
                 <button
                   type="button"
+                  className="srtToolBtn primary"
+                  onClick={() => {
+                    setIngestMode('upload')
+                    setTimeout(() => folderInputRef.current?.click(), 50)
+                  }}
+                >
+                  Browse Local Folder ↗
+                </button>
+                <button
+                  type="button"
                   className="srtScanPathBtn"
                   onClick={handleStartPathBatch}
                   disabled={isScanningPath || !inputLocationPath.trim()}
                 >
-                  {isScanningPath ? 'Scanning Location...' : 'Scan & Classify Location ↗'}
+                  {isScanningPath ? 'Scanning Location...' : 'Scan Path ↗'}
                 </button>
               </div>
             </div>
@@ -717,7 +803,16 @@ export default function BulkClassificationWorkspace({
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-                  <div className="srtPathFieldWrap" style={{ flex: '1 1 360px' }}>
+                  <button
+                    type="button"
+                    className="srtPrimaryBtn"
+                    onClick={handlePickAndStoreSimilarDocs}
+                    disabled={isUpdatingLocation}
+                    style={{ padding: '10px 18px', fontWeight: 700 }}
+                  >
+                    {isUpdatingLocation ? 'Writing Files to Folder...' : '📁 Choose Folder & Store Files on PC ↗'}
+                  </button>
+                  <div className="srtPathFieldWrap" style={{ flex: '1 1 280px' }}>
                     <svg className="srtPathIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
@@ -725,7 +820,7 @@ export default function BulkClassificationWorkspace({
                       ref={similarLocInputRef}
                       type="text"
                       className="srtPathInput"
-                      placeholder="Enter location to store similar documents (e.g. C:\Enterprise_Vault\Similar_Docs or /Archive/Commercial_Loan_Docs)"
+                      placeholder="Optional path label (e.g. C:\Enterprise_Vault\Similar_Docs)"
                       value={editLocationDraft}
                       onChange={e => {
                         setEditLocationDraft(e.target.value)
@@ -734,20 +829,16 @@ export default function BulkClassificationWorkspace({
                       onKeyDown={e => { if (e.key === 'Enter') handleApplyNewStorageLocation() }}
                     />
                   </div>
-                  <button
-                    type="button"
-                    className="srtToolBtn primary"
-                    onClick={handleApplyNewStorageLocation}
-                    disabled={isUpdatingLocation || !editLocationDraft.trim()}
-                    style={{ padding: '9px 16px', fontWeight: 700 }}
-                  >
-                    {isUpdatingLocation ? 'Storing Similar Docs...' : 'Store Similar Documents Here ↗'}
-                  </button>
                 </div>
 
-                {(locationSavedSuccess || currentBatch.target_storage_location) && (
-                  <div style={{ fontSize: '12px', color: '#6ee7b7', fontWeight: 600 }}>
-                    ✓ All similar documents have been grouped and routed to: <code>{currentBatch.target_storage_location}</code>
+                {storedOnDiskMsg && (
+                  <div style={{ fontSize: '12.5px', color: '#34d399', fontWeight: 700, padding: '8px 12px', background: 'rgba(16, 185, 129, 0.14)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                    {storedOnDiskMsg}
+                  </div>
+                )}
+                {!storedOnDiskMsg && (locationSavedSuccess || currentBatch.target_storage_location) && (
+                  <div style={{ fontSize: '12px', color: '#fde68a', fontWeight: 600 }}>
+                    Path mapped to <code>{currentBatch.target_storage_location}</code> — click <strong>Choose Folder &amp; Store Files on PC ↗</strong> above to write the actual files to your computer.
                   </div>
                 )}
 
