@@ -1136,7 +1136,7 @@ def rule_based_classification_fallback(content: str, file_name: str = '') -> dic
     return _enforce_ambiguity_guardrail(res)
 
 
-def classify_content(content: str, file_name: str = '', conversation_history: list = None) -> dict:
+def classify_content(content: str, file_name: str = '', conversation_history: list = None, fast_mode: bool = False) -> dict:
     """Dual-mode enterprise content classification engine powered by AWS Bedrock."""
     started_at = time.time()
     clean = (content or '').strip()
@@ -1177,7 +1177,16 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
         }
     safe_text = sanitized_res['text']
 
-    # 3. Call Amazon Bedrock Converse API
+    # 3. Call Amazon Bedrock Converse API (unless fast_mode is enabled for large/time-bounded batches)
+    if fast_mode:
+        res = rule_based_classification_fallback(safe_text, file_name)
+        res = _enrich_and_execute_routing(res, safe_text, file_name, started_at)
+        trace_code = f"SRT-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        if isinstance(res, dict):
+            res['trace_id'] = trace_code
+            res['guardrails'] = {"status": "PASSED", "pci_dss_sanitized": True}
+        return res
+
     try:
         client = get_bedrock_client()
 
@@ -1262,7 +1271,7 @@ def classify_content(content: str, file_name: str = '', conversation_history: li
     except Exception as e:
         print(f"[SORTIA] Bedrock invocation exception: {e}")
 
-    # 4. Deterministic fallback if Bedrock was unavailable
+    # 4. Deterministic fallback if Bedrock was unavailable or fast_mode is active
     if not file_name and len(clean.split()) < 10:
         return {
             'type': 'chat',

@@ -229,28 +229,23 @@ def create_batch(files: list, batch_name: str = None, target_storage_location: s
     _save_batch(batch_data)
 
     if total_files > 0:
-        if total_files <= 15:
-            # Run synchronously so AWS Lambda completes 100% of files before returning
-            _process_batch_worker(batch_id, file_entries)
-            final_batch = _load_batch(batch_id) or batch_data
-            return _sanitize_batch_for_client(final_batch)
-        else:
-            t = threading.Thread(
-                target=_process_batch_worker,
-                args=(batch_id, file_entries),
-                daemon=True
-            )
-            t.start()
+        # Always complete synchronously within API Gateway's timeout budget (using parallel workers + fast_mode fallback)
+        _process_batch_worker(batch_id, file_entries)
+        final_batch = _load_batch(batch_id) or batch_data
+        return _sanitize_batch_for_client(final_batch)
 
     return _sanitize_batch_for_client(batch_data)
 
 
 def _process_batch_worker(batch_id: str, file_entries: list):
-    """Worker classifying files with parallel workers and grouping similar documents into target_storage_location."""
+    """Worker classifying files with parallel workers and time-bounded execution so API Gateway never times out (503)."""
     batch_data = _load_batch(batch_id)
     if not batch_data:
         return
     target_loc = (batch_data.get('target_storage_location') or '').strip()
+    total_files = len(file_entries)
+    llm_deadline = time.time() + 17.0
+    use_fast_for_all = total_files > 6
 
     def _process_single(entry):
         start_time = time.time()
@@ -283,7 +278,8 @@ def _process_batch_worker(batch_id: str, file_entries: list):
             classified = sortia_service.classify_content(
                 content=text,
                 file_name=fname,
-                conversation_history=[]
+                conversation_history=[],
+                fast_mode=use_fast_for_all or (time.time() >= llm_deadline),
             )
 
             auto_route = classified.get('autonomous_routing') or {}
@@ -347,41 +343,38 @@ def _process_batch_worker(batch_id: str, file_entries: list):
                 'processing_time_ms': int((time.time() - start_time) * 1000)
             }
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        for res in executor.map(_process_single, file_entries):
-            batch_data = _load_batch(batch_id)
-            if not batch_data:
-                break
+    with ThreadPoolExecutor(max_workers=min(8, max(1, total_files))) as executor:
+        results_list = list(executor.map(_process_single, file_entries))
+    batch_data = _load_batch(batch_id)
+    if batch_data:
+        by_id = {r['doc_id']: r for r in results_list}
+        for f in batch_data['files']:
+            if f['doc_id'] in by_id:
+                f.update(by_id[f['doc_id']])
 
-            doc_id = res['doc_id']
-            for f in batch_data['files']:
-                if f['doc_id'] == doc_id:
-                    f.update(res)
-                    break
+        total = len(batch_data['files'])
+        classified_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'ROUTED')
+        exceptions_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'EXCEPTION_QUEUE')
+        failed_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'FAILED')
+        done_cnt = classified_cnt + exceptions_cnt + failed_cnt
 
-            total = len(batch_data['files'])
-            classified_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'ROUTED')
-            exceptions_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'EXCEPTION_QUEUE')
-            failed_cnt = sum(1 for f in batch_data['files'] if f['status'] == 'FAILED')
-            done_cnt = classified_cnt + exceptions_cnt + failed_cnt
+        cat_dist = {}
+        for f in batch_data['files']:
+            cat = f.get('primary_category')
+            if cat:
+                cat_dist[cat] = cat_dist.get(cat, 0) + 1
 
-            cat_dist = {}
-            for f in batch_data['files']:
-                cat = f.get('primary_category')
-                if cat:
-                    cat_dist[cat] = cat_dist.get(cat, 0) + 1
+        batch_data['classified_count'] = classified_cnt
+        batch_data['exceptions_count'] = exceptions_cnt
+        batch_data['failed_count'] = failed_cnt
+        batch_data['processing_count'] = max(0, total - done_cnt)
+        batch_data['progress_pct'] = round((done_cnt / max(1, total)) * 100)
+        batch_data['category_distribution'] = cat_dist
+        batch_data['similar_document_groups'] = _build_similar_document_groups(batch_data['files'], batch_data.get('target_storage_location') or '')
+        batch_data['status'] = 'COMPLETED' if done_cnt >= total else 'PROCESSING'
+        batch_data['updated_at'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
-            batch_data['classified_count'] = classified_cnt
-            batch_data['exceptions_count'] = exceptions_cnt
-            batch_data['failed_count'] = failed_cnt
-            batch_data['processing_count'] = max(0, total - done_cnt)
-            batch_data['progress_pct'] = round((done_cnt / max(1, total)) * 100)
-            batch_data['category_distribution'] = cat_dist
-            batch_data['similar_document_groups'] = _build_similar_document_groups(batch_data['files'], batch_data.get('target_storage_location') or '')
-            batch_data['status'] = 'COMPLETED' if done_cnt >= total else 'PROCESSING'
-            batch_data['updated_at'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-
-            _save_batch(batch_data)
+        _save_batch(batch_data)
 
 
 def update_batch_storage_location(batch_id: str, target_storage_location: str) -> dict:
