@@ -96,6 +96,7 @@ const TREE_LEVEL_LABELS = ['Root Domain', 'Category', 'Sub-Category', 'Classific
 
 export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
   const [activeTab, setActiveTab] = useState('decision') // 'decision' | 'signals' | 'metadata'
+  const [showTree, setShowTree] = useState(true)
   const [scrollTarget, setScrollTarget] = useState('')
 
   function jumpToSection(tab, elementId) {
@@ -311,70 +312,79 @@ export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
         </div>
 
         {cleanTaxonomy.length > 0 && (
-          <div className="srtTreeHero" aria-label="Taxonomy Hierarchy Tree">
-            <div className="srtTreeHeroHead">
-              <div className="srtTreeLabel">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                  <path d="M10 6.5h4" />
-                  <path d="M6.5 10v7a1.5 1.5 0 0 0 1.5 1.5H14" />
-                </svg>
-                <span>Taxonomy Hierarchy Tree</span>
-              </div>
-              <span className="srtTreeCount">{cleanTaxonomy.length} Levels</span>
+          <>
+            <div className="srtTaxChain" aria-label="Taxonomy hierarchy">
+              <span className="srtTaxPrefix">Taxonomy:</span>
+              {cleanTaxonomy.map((node, idx) => (
+                <span key={idx} className="srtTaxStep">
+                  <span className={idx === cleanTaxonomy.length - 1 ? 'srtTaxLeaf' : 'srtTaxParent'}>
+                    {node}
+                  </span>
+                  {idx < cleanTaxonomy.length - 1 && <span className="srtTaxSep">→</span>}
+                </span>
+              ))}
+              <button
+                type="button"
+                className="srtTreeToggleBtn"
+                onClick={() => setShowTree(v => !v)}
+              >
+                {showTree ? 'Hide Tree' : 'Taxonomy Tree'}
+              </button>
             </div>
 
-            <div className="srtTreeFlow">
-              {cleanTaxonomy.map((levelName, idx) => {
-                const isLast = idx === cleanTaxonomy.length - 1
-                const lvlColor = isLast ? TREE_LEVEL_PALETTE[4] : TREE_LEVEL_PALETTE[idx % 4]
-                return (
-                  <div
-                    key={idx}
-                    className="srtTreeLevel"
-                    style={{ marginLeft: `${idx * 24}px` }}
-                  >
-                    {idx > 0 && (
+            {showTree && (
+              <div className="srtTreeHero srtTreeCompact" aria-label="Taxonomy Hierarchy Tree">
+                <div className="srtTreeFlow">
+                  {cleanTaxonomy.map((levelName, idx) => {
+                    const isLast = idx === cleanTaxonomy.length - 1
+                    const lvlColor = isLast ? TREE_LEVEL_PALETTE[4] : TREE_LEVEL_PALETTE[idx % 4]
+                    return (
                       <div
-                        className="srtTreeElbow"
-                        aria-hidden="true"
-                        style={{ borderColor: `${lvlColor.border}88` }}
-                      />
-                    )}
-                    <div className="srtTreeGutter">
-                      <div
-                        className="srtTreeDot"
-                        style={{
-                          background: lvlColor.dot,
-                          boxShadow: isLast ? '0 0 10px #34d399' : `0 0 8px ${lvlColor.dot}88`
-                        }}
-                      />
-                      {!isLast && <div className="srtTreeLine" />}
-                    </div>
-                    <div className="srtTreeNodeBody">
-                      <span className="srtTreeLevelTag" style={{ color: lvlColor.tag }}>
-                        {isLast
-                          ? `Terminal Category (Level ${idx + 1})`
-                          : `Level ${idx + 1} · ${TREE_LEVEL_LABELS[idx] || `Node ${idx + 1}`}`}
-                      </span>
-                      <span
-                        className="srtTreeNodeName"
-                        style={{
-                          color: isLast ? '#34d399' : '#f0f7ff',
-                          fontSize: isLast ? '16px' : '14.5px',
-                          fontWeight: isLast ? 750 : 600
-                        }}
+                        key={idx}
+                        className="srtTreeLevel"
+                        style={{ marginLeft: `${idx * 20}px` }}
                       >
-                        {levelName}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                        {idx > 0 && (
+                          <div
+                            className="srtTreeElbow"
+                            aria-hidden="true"
+                            style={{ borderColor: `${lvlColor.border}88` }}
+                          />
+                        )}
+                        <div className="srtTreeGutter">
+                          <div
+                            className="srtTreeDot"
+                            style={{
+                              background: lvlColor.dot,
+                              boxShadow: isLast ? '0 0 8px #34d399' : `0 0 6px ${lvlColor.dot}88`
+                            }}
+                          />
+                          {!isLast && <div className="srtTreeLine" />}
+                        </div>
+                        <div className="srtTreeNodeBody">
+                          <span className="srtTreeLevelTag" style={{ color: lvlColor.tag }}>
+                            {isLast
+                              ? `Terminal (L${idx + 1})`
+                              : `L${idx + 1} · ${TREE_LEVEL_LABELS[idx] || `Node ${idx + 1}`}`}
+                          </span>
+                          <span
+                            className="srtTreeNodeName"
+                            style={{
+                              color: isLast ? '#34d399' : '#f0f7ff',
+                              fontSize: isLast ? '14px' : '13px',
+                              fontWeight: isLast ? 700 : 600
+                            }}
+                          >
+                            {levelName}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="srtMetaChipsRow">
