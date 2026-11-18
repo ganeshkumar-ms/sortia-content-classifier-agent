@@ -284,9 +284,24 @@ export default function App() {
   function handleLoadSession(id) {
     const sess = sessions.find(s => s.id === id)
     if (!sess) return
-    if (sess.isBulkBatch && sess.batchData) {
-      setDrawerOpen(false)
-      setActiveBulkBatch(sess.batchData)
+    const isBulk = Boolean(
+      sess.isBulkBatch ||
+      String(sess.id || '').startsWith('bulk_') ||
+      String(sess.title || '').startsWith('Bulk ·')
+    )
+    if (isBulk) {
+      setSidebarOpen(false)
+      let batchObj = sess.batchData || null
+      if (!batchObj) {
+        try {
+          const savedBulk = JSON.parse(localStorage.getItem('sortia_bulk_batches_v1') || '[]')
+          const bId = String(sess.id || '').replace(/^bulk_/, '')
+          batchObj = savedBulk.find(b => b.batch_id === bId) || null
+        } catch {
+          batchObj = null
+        }
+      }
+      setActiveBulkBatch(batchObj)
       setShowBulkModal(true)
       return
     }
