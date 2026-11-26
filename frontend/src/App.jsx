@@ -222,6 +222,12 @@ export default function App() {
   const messagesRef = useRef(null)
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.self !== window.top) {
+      document.documentElement.classList.add('in-iframe')
+    }
+  }, [])
+
+  useEffect(() => {
     const cleanForStorage = sessions
       .filter(s => s.messages && s.messages.length > 0)
       .map(s => ({
@@ -244,7 +250,7 @@ export default function App() {
         if (lastAi) {
           const containerRect = container.getBoundingClientRect()
           const aiRect = lastAi.getBoundingClientRect()
-          const targetTop = Math.max(0, container.scrollTop + (aiRect.top - containerRect.top) - 16)
+          const targetTop = Math.max(0, container.scrollTop + (aiRect.top - containerRect.top) - 44)
           container.scrollTo({ top: targetTop, behavior: 'smooth' })
           return
         }
