@@ -109,6 +109,70 @@ export async function retryBatch(batchId) {
   return res.json()
 }
 
+export async function rerunBatch(batchId, { files = [], batchSnapshot = null } = {}) {
+  const formData = new FormData()
+  for (const f of files) {
+    if (f) formData.append('files', f)
+  }
+  if (batchSnapshot) {
+    formData.append('batch_snapshot', JSON.stringify(batchSnapshot))
+  }
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}/rerun`, {
+    method: 'POST',
+    body: formData
+  })
+  const textResp = await res.text()
+  let data
+  try {
+    data = JSON.parse(textResp)
+  } catch {
+    throw new Error(`Invalid server response (${res.status}): ${textResp.slice(0, 150)}`)
+  }
+  if (!res.ok) throw new Error(data.detail || data.message || `Failed to rerun batch (${res.status})`)
+  return data
+}
+
+export async function addFilesToBatch(batchId, { files = [], batchSnapshot = null } = {}) {
+  const formData = new FormData()
+  for (const f of files) {
+    formData.append('files', f)
+  }
+  if (batchSnapshot) {
+    formData.append('batch_snapshot', JSON.stringify(batchSnapshot))
+  }
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}/add-files`, {
+    method: 'POST',
+    body: formData
+  })
+  const textResp = await res.text()
+  let data
+  try {
+    data = JSON.parse(textResp)
+  } catch {
+    throw new Error(`Invalid server response (${res.status}): ${textResp.slice(0, 150)}`)
+  }
+  if (!res.ok) throw new Error(data.detail || data.message || `Failed to add files (${res.status})`)
+  return data
+}
+
+export async function deleteBatchFile(batchId, docId, batchSnapshot = null) {
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}/files/${encodeURIComponent(docId)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ batch_snapshot: batchSnapshot })
+  })
+  if (!res.ok) throw new Error(`Failed to remove file (${res.status})`)
+  return res.json()
+}
+
+export async function deleteBatch(batchId) {
+  const res = await fetch(`${API_BASE}/api/batch/${encodeURIComponent(batchId)}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error(`Failed to delete batch (${res.status})`)
+  return res.json()
+}
+
 export function getBatchExportUrl(batchId) {
   return `${API_BASE}/api/batch/${encodeURIComponent(batchId)}/export`
 }

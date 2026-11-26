@@ -5,6 +5,10 @@ import {
   getBatch,
   getBatches,
   retryBatch,
+  rerunBatch,
+  addFilesToBatch,
+  deleteBatchFile,
+  deleteBatch,
   updateBatchStorageLocation,
   getBatchExportUrl,
 } from '../services/api.js'
@@ -90,11 +94,14 @@ export default function BulkClassificationWorkspace({
   const [selectedDocResult, setSelectedDocResult] = useState(null)
 
   const fileInputRef = useRef(null)
+  const addBatchFileInputRef = useRef(null)
   const folderInputRef = useRef(null)
   const similarLocInputRef = useRef(null)
   const pollIntervalRef = useRef(null)
   const uploadedFileMapRef = useRef(new Map()) // Maps filename -> File object for real disk saving
   const [storedOnDiskMsg, setStoredOnDiskMsg] = useState('')
+  const [isRerunning, setIsRerunning] = useState(false)
+  const [isAddingFiles, setIsAddingFiles] = useState(false)
 
   // Save/merge a batch into persistent history and notify parent App
   const upsertBatchInHistory = (batchObj) => {
@@ -190,8 +197,13 @@ export default function BulkClassificationWorkspace({
     setFilesToUpload([])
   }
 
-  const deleteBatchFromHistory = (batchId, e) => {
+  const deleteBatchFromHistory = async (batchId, e) => {
     if (e) e.stopPropagation()
+    try {
+      await deleteBatch(batchId)
+    } catch {
+      // Ignore network/cold-start errors so local history still clears cleanly
+    }
     setBulkHistory(prev => {
       const next = prev.filter(b => b.batch_id !== batchId)
       persistBulkBatches(next)
@@ -199,6 +211,77 @@ export default function BulkClassificationWorkspace({
     })
     if (currentBatch?.batch_id === batchId) {
       setCurrentBatch(null)
+      setError(null)
+    }
+  }
+
+  const handleRerunBatch = async (targetBatch = currentBatch, e = null) => {
+    if (e) e.stopPropagation()
+    if (!targetBatch?.batch_id || isRerunning) return
+    setIsRerunning(true)
+    setError(null)
+    setStoredOnDiskMsg('')
+    try {
+      const cachedFiles = (targetBatch.files || [])
+        .map(f => uploadedFileMapRef.current.get(f.filename))
+        .filter(Boolean)
+      const updated = await rerunBatch(targetBatch.batch_id, {
+        files: cachedFiles,
+        batchSnapshot: targetBatch,
+      })
+      setCurrentBatch(updated)
+      setEditLocationDraft(updated.target_storage_location || '')
+      upsertBatchInHistory(updated)
+    } catch (err) {
+      setError(err.message || 'Failed to rerun batch.')
+    } finally {
+      setIsRerunning(false)
+    }
+  }
+
+  const handleAddFilesToExistingBatch = async (e) => {
+    const newFiles = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!currentBatch?.batch_id || newFiles.length === 0 || isAddingFiles) return
+    setIsAddingFiles(true)
+    setError(null)
+    newFiles.forEach(f => {
+      if (f && f.name) uploadedFileMapRef.current.set(f.name, f)
+    })
+    try {
+      const updated = await addFilesToBatch(currentBatch.batch_id, {
+        files: newFiles,
+        batchSnapshot: currentBatch,
+      })
+      setCurrentBatch(updated)
+      upsertBatchInHistory(updated)
+    } catch (err) {
+      setError(err.message || 'Failed to add files to batch.')
+    } finally {
+      setIsAddingFiles(false)
+    }
+  }
+
+  const handleRemoveFileFromBatch = async (docId) => {
+    if (!currentBatch?.batch_id || !docId) return
+    setError(null)
+    try {
+      const updated = await deleteBatchFile(currentBatch.batch_id, docId, currentBatch)
+      setCurrentBatch(updated)
+      upsertBatchInHistory(updated)
+    } catch {
+      const remainingFiles = (currentBatch.files || []).filter(f => f.doc_id !== docId)
+      const localUpdated = {
+        ...currentBatch,
+        files: remainingFiles,
+        total_files: remainingFiles.length,
+        classified_count: remainingFiles.filter(f => f.status === 'ROUTED').length,
+        exceptions_count: remainingFiles.filter(f => f.status === 'EXCEPTION_QUEUE').length,
+        failed_count: remainingFiles.filter(f => f.status === 'FAILED').length,
+      }
+      localUpdated.similar_document_groups = buildClientSimilarGroups(localUpdated)
+      setCurrentBatch(localUpdated)
+      upsertBatchInHistory(localUpdated)
     }
   }
 
@@ -697,6 +780,15 @@ export default function BulkClassificationWorkspace({
                       </button>
                       <button
                         type="button"
+                        className="srtViewBtn"
+                        title="Rerun this batch"
+                        disabled={isRerunning}
+                        onClick={(e) => handleRerunBatch(b, e)}
+                      >
+                        {isRerunning ? 'Rerunning...' : '↻ Rerun'}
+                      </button>
+                      <button
+                        type="button"
                         className="srtStagedDel"
                         title="Delete saved batch"
                         onClick={(e) => deleteBatchFromHistory(b.batch_id, e)}
@@ -726,6 +818,37 @@ export default function BulkClassificationWorkspace({
               <span className="srtBatchName">{currentBatch.batch_name}</span>
             </div>
             <div className="srtBatchActions">
+              <input
+                type="file"
+                multiple
+                ref={addBatchFileInputRef}
+                onChange={handleAddFilesToExistingBatch}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                className="srtToolBtn"
+                onClick={() => addBatchFileInputRef.current?.click()}
+                disabled={isAddingFiles || isRerunning}
+              >
+                {isAddingFiles ? 'Adding Files...' : '+ Add Files'}
+              </button>
+              <button
+                type="button"
+                className="srtToolBtn"
+                onClick={() => handleRerunBatch(currentBatch)}
+                disabled={isRerunning || isAddingFiles}
+              >
+                {isRerunning ? 'Rerunning...' : '↻ Rerun Batch'}
+              </button>
+              <button
+                type="button"
+                className="srtToolBtn warning"
+                onClick={() => deleteBatchFromHistory(currentBatch.batch_id)}
+                disabled={isRerunning || isAddingFiles}
+              >
+                Delete Batch
+              </button>
               <a
                 href={getBatchExportUrl(currentBatch.batch_id)}
                 download={`${currentBatch.batch_id}_export.csv`}
@@ -989,17 +1112,35 @@ export default function BulkClassificationWorkspace({
                           </span>
                         </td>
                         <td>
-                          {file.result ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {file.result ? (
+                              <button
+                                type="button"
+                                className="srtViewBtn"
+                                onClick={() => setSelectedDocResult({
+                                  primary_category: file.primary_category,
+                                  subtype: file.subtype,
+                                  confidence: file.confidence,
+                                  owner_organization: ownerOrg,
+                                  unique_entity_id: uniqueId,
+                                  standardized_filename: stdName,
+                                  ...file.result,
+                                })}
+                              >
+                                Inspect ↗
+                              </button>
+                            ) : (
+                              <span className="noAct">—</span>
+                            )}
                             <button
                               type="button"
-                              className="srtViewBtn"
-                              onClick={() => setSelectedDocResult(file.result)}
+                              className="srtStagedDel"
+                              title="Remove document from batch"
+                              onClick={() => handleRemoveFileFromBatch(file.doc_id)}
                             >
-                              Inspect ↗
+                              ✕
                             </button>
-                          ) : (
-                            <span className="noAct">—</span>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     )

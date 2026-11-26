@@ -279,6 +279,85 @@ def lambda_handler(event, context):
             return _json_response(404, {'detail': 'Batch not found.'})
         return _json_response(200, res)
 
+    # Batch Rerun (whenever user wants)
+    if raw_path.startswith('/api/batch/') and raw_path.endswith('/rerun') and method == 'POST':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        headers = {k.lower(): v for k, v in (event.get('headers') or {}).items()}
+        ct = headers.get('content-type', '')
+        body_raw = event.get('body') or ''
+        body_bytes = base64.b64decode(body_raw) if event.get('isBase64Encoded') else body_raw.encode('latin-1')
+        files_list = []
+        batch_snapshot = None
+        if 'multipart/form-data' in ct:
+            parsed = _parse_multipart(body_bytes, ct)
+            files_list = parsed.get('files') or ([parsed['file']] if parsed.get('file') else [])
+            snap_raw = parsed.get('fields', {}).get('batch_snapshot')
+            if snap_raw:
+                try:
+                    batch_snapshot = json.loads(snap_raw)
+                except Exception:
+                    batch_snapshot = None
+        else:
+            try:
+                data = json.loads(body_bytes.decode('utf-8', errors='replace') or '{}')
+                batch_snapshot = data.get('batch_snapshot')
+            except Exception:
+                batch_snapshot = None
+        res = batch_service.rerun_batch(batch_id, files=files_list, batch_snapshot=batch_snapshot)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
+
+    # Batch Add Files
+    if raw_path.startswith('/api/batch/') and raw_path.endswith('/add-files') and method == 'POST':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        headers = {k.lower(): v for k, v in (event.get('headers') or {}).items()}
+        ct = headers.get('content-type', '')
+        body_raw = event.get('body') or ''
+        body_bytes = base64.b64decode(body_raw) if event.get('isBase64Encoded') else body_raw.encode('latin-1')
+        parsed = _parse_multipart(body_bytes, ct) if 'multipart/form-data' in ct else {'fields': {}, 'files': []}
+        files_list = parsed.get('files') or ([parsed['file']] if parsed.get('file') else [])
+        if not files_list:
+            return _json_response(400, {'detail': 'No files uploaded to add to batch.'})
+        batch_snapshot = None
+        snap_raw = parsed.get('fields', {}).get('batch_snapshot')
+        if snap_raw:
+            try:
+                batch_snapshot = json.loads(snap_raw)
+            except Exception:
+                batch_snapshot = None
+        res = batch_service.add_files_to_batch(batch_id, files_list, batch_snapshot=batch_snapshot)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
+
+    # Batch Delete Single File
+    if raw_path.startswith('/api/batch/') and '/files/' in raw_path and method == 'DELETE':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        doc_id = parts[5] if len(parts) > 5 else ''
+        batch_snapshot = None
+        body_raw = event.get('body') or ''
+        if body_raw:
+            try:
+                data = json.loads(body_raw)
+                batch_snapshot = data.get('batch_snapshot')
+            except Exception:
+                batch_snapshot = None
+        res = batch_service.delete_batch_file(batch_id, doc_id, batch_snapshot=batch_snapshot)
+        if not res:
+            return _json_response(404, {'detail': 'Batch not found.'})
+        return _json_response(200, res)
+
+    # Batch Delete Entire Batch
+    if raw_path.startswith('/api/batch/') and method == 'DELETE':
+        parts = raw_path.split('/')
+        batch_id = parts[3]
+        batch_service.delete_batch(batch_id)
+        return _json_response(200, {'deleted': True, 'batch_id': batch_id})
+
     # Batch Details / Poll
     if raw_path.startswith('/api/batch/') and method == 'GET':
         parts = raw_path.split('/')

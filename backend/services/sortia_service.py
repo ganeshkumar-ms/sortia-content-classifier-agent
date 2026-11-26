@@ -280,13 +280,80 @@ def _sanitize_ai_output(obj):
     return obj
 
 
+def _repair_truncated_json(text: str) -> dict | None:
+    """Repairs truncated or slightly malformed JSON objects from LLM output."""
+    start = text.find('{')
+    if start == -1:
+        return None
+    frag = text[start:]
+    frag = re.sub(r',\s*([}\]])', r'\1', frag)
+
+    # First try strict=False directly
+    try:
+        parsed = json.loads(frag, strict=False)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Try closing unclosed string / brackets / braces from truncated output
+    in_str = False
+    escaped = False
+    stack = []
+    for ch in frag:
+        if escaped:
+            escaped = False
+            continue
+        if ch == '\\' and in_str:
+            escaped = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+        elif not in_str:
+            if ch in '{[':
+                stack.append('}' if ch == '{' else ']')
+            elif ch in '}]' and stack and stack[-1] == ch:
+                stack.pop()
+
+    candidate = frag
+    if in_str:
+        candidate += '"'
+    candidate = re.sub(r',\s*$', '', candidate)
+    candidate += ''.join(reversed(stack))
+    candidate = re.sub(r',\s*([}\]])', r'\1', candidate)
+    try:
+        parsed = json.loads(candidate, strict=False)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: extract top-level classification fields if JSON is mid-token truncated
+    if '"type"' in frag and '"classification"' in frag:
+        recovered = {'type': 'classification'}
+        for key in (
+            'classification_title', 'document_type_detected', 'primary_category',
+            'subtype', 'domain', 'confidence_calibration', 'score_explanation',
+            'summary', 'owner_organization', 'unique_entity_id', 'standardized_filename',
+        ):
+            m = re.search(rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*)"', frag)
+            if m:
+                recovered[key] = m.group(1).replace('\\"', '"').replace('\\n', '\n')
+        m_conf = re.search(r'"confidence"\s*:\s*(\d+)', frag)
+        if m_conf:
+            recovered['confidence'] = int(m_conf.group(1))
+        if recovered.get('primary_category'):
+            return recovered
+    return None
+
+
 def clean_and_parse_json(raw: str) -> dict:
     text = (raw or '').strip()
     text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.MULTILINE)
     text = re.sub(r'\s*```$', '', text, flags=re.MULTILINE).strip()
 
     try:
-        parsed = json.loads(text)
+        parsed = json.loads(text, strict=False)
         if isinstance(parsed, dict):
             return parsed
     except json.JSONDecodeError:
@@ -295,11 +362,16 @@ def clean_and_parse_json(raw: str) -> dict:
     match = re.search(r'(\{[\s\S]*\})', text)
     if match:
         try:
-            parsed = json.loads(match.group(1))
+            cleaned = re.sub(r',\s*([}\]])', r'\1', match.group(1))
+            parsed = json.loads(cleaned, strict=False)
             if isinstance(parsed, dict):
                 return parsed
         except json.JSONDecodeError:
             pass
+
+    repaired = _repair_truncated_json(text)
+    if repaired:
+        return repaired
 
     return {
         'type': 'chat',

@@ -94,7 +94,37 @@ const TREE_LEVEL_PALETTE = [
 
 const TREE_LEVEL_LABELS = ['Root Domain', 'Category', 'Sub-Category', 'Classification', 'Terminal Class']
 
-export default function SortiaResultCard({ data, guardrails: propGuardrails }) {
+function recoverClassificationFromRaw(rawData) {
+  if (!rawData || typeof rawData !== 'object') return rawData
+  if (rawData.type === 'classification' || rawData.primary_category) return rawData
+  const msg = typeof rawData.message === 'string' ? rawData.message.trim() : ''
+  if (!msg.startsWith('{') || (!msg.includes('"classification"') && !msg.includes('"primary_category"'))) {
+    return rawData
+  }
+  try {
+    const parsed = JSON.parse(msg)
+    if (parsed && typeof parsed === 'object') return { ...rawData, ...parsed }
+  } catch {
+    // Recover fields from truncated JSON string
+    const recovered = { ...rawData, type: 'classification' }
+    const strFields = [
+      'classification_title', 'document_type_detected', 'primary_category',
+      'subtype', 'domain', 'confidence_calibration', 'score_explanation',
+      'summary', 'owner_organization', 'unique_entity_id', 'standardized_filename',
+    ]
+    for (const key of strFields) {
+      const m = msg.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`))
+      if (m) recovered[key] = m[1].replace(/\\"/g, '"').replace(/\\n/g, '\n')
+    }
+    const confM = msg.match(/"confidence"\s*:\s*(\d+)/)
+    if (confM) recovered.confidence = Number(confM[1])
+    if (recovered.primary_category) return recovered
+  }
+  return rawData
+}
+
+export default function SortiaResultCard({ data: rawInputData, guardrails: propGuardrails }) {
+  const data = recoverClassificationFromRaw(rawInputData)
   const [activeTab, setActiveTab] = useState('decision') // 'decision' | 'signals' | 'metadata'
   const [showTree, setShowTree] = useState(true)
   const [scrollTarget, setScrollTarget] = useState('')

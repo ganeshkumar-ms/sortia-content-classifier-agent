@@ -78,29 +78,43 @@ def _extract_xlsx_stdlib(content_bytes: bytes) -> str:
 
 
 def _extract_pdf_stdlib(content_bytes: bytes) -> str:
-    """Pure-stdlib PDF text extractor supporting uncompressed & FlateDecode streams."""
+    """Pure-stdlib PDF text extractor supporting /ASCII85Decode + /FlateDecode, /FlateDecode, and raw streams."""
+    import base64
     chunks = []
     stream_pattern = re.compile(rb'stream\r?\n(.*?)endstream', re.S)
     for match in stream_pattern.finditer(content_bytes):
         data = match.group(1).rstrip(b'\r\n')
+        decoded = data
+        # 1. Decode Adobe ASCII85 (~> terminator) if present
+        stripped = decoded.strip()
+        if b'~>' in stripped:
+            try:
+                decoded = base64.a85decode(stripped, adobe=True)
+            except Exception:
+                try:
+                    decoded = base64.a85decode(stripped.split(b'~>', 1)[0] + b'~>', adobe=True)
+                except Exception:
+                    pass
+        # 2. Decompress FlateDecode (zlib) if compressed
         try:
-            decoded = zlib.decompress(data)
+            decoded = zlib.decompress(decoded)
         except Exception:
-            decoded = data
+            pass
         text_str = decoded.decode('latin-1', errors='ignore')
         for paren in re.findall(r'\(([^()]*)\)', text_str):
             cleaned = paren.replace(r'\(', '(').replace(r'\)', ')').replace(r'\\', '\\').strip()
             if cleaned and any(ch.isalnum() for ch in cleaned):
                 chunks.append(cleaned)
     if not chunks:
-        # Fallback for uncompressed literal PDF strings outside stream blocks
         raw = content_bytes.decode('latin-1', errors='ignore')
         for m in re.findall(r'\(([^()]{2,200})\)', raw):
             cleaned = m.replace(r'\(', '(').replace(r'\)', ')').strip()
             if cleaned and sum(ch.isalnum() or ch.isspace() for ch in cleaned) >= len(cleaned) * 0.65:
                 if any(ch.isalpha() for ch in cleaned):
                     chunks.append(cleaned)
-    return ' '.join(chunks[:600]).strip()
+    joined = ' '.join(chunks).strip()
+    return re.sub(r'\s+', ' ', joined)
+
 
 
 def extract_document(filename: str, content_bytes: bytes) -> dict:
@@ -147,15 +161,32 @@ def extract_document(filename: str, content_bytes: bytes) -> dict:
 
         elif ext == '.pdf':
             detected_type = 'application/pdf'
-            try:
-                import pypdf
-                reader = pypdf.PdfReader(io.BytesIO(content_bytes))
-                pages = [page.extract_text() or '' for page in reader.pages]
-                text = '\n\n'.join(pages).strip()
-            except Exception:
-                text = ''
+            for extractor in ('pdfplumber', 'pypdfium2', 'pypdf'):
+                if text:
+                    break
+                try:
+                    if extractor == 'pdfplumber':
+                        import pdfplumber
+                        with pdfplumber.open(io.BytesIO(content_bytes)) as pdf:
+                            pages = [pg.extract_text() or '' for pg in pdf.pages]
+                            text = '\n\n'.join(p for p in pages if p.strip()).strip()
+                    elif extractor == 'pypdfium2':
+                        import pypdfium2 as pdfium
+                        doc = pdfium.PdfDocument(content_bytes)
+                        pages = [doc[i].get_textpage().get_text_range() or '' for i in range(len(doc))]
+                        text = '\n\n'.join(p for p in pages if p.strip()).strip()
+                    elif extractor == 'pypdf':
+                        import pypdf
+                        reader = pypdf.PdfReader(io.BytesIO(content_bytes))
+                        pages = [page.extract_text() or '' for page in reader.pages]
+                        text = '\n\n'.join(p for p in pages if p.strip()).strip()
+                except Exception:
+                    text = ''
             if not text:
-                text = _extract_pdf_stdlib(content_bytes)
+                cand = _extract_pdf_stdlib(content_bytes)
+                alpha_cnt = sum(ch.isalpha() or ch.isspace() for ch in cand)
+                if cand and alpha_cnt >= len(cand) * 0.72:
+                    text = cand
 
         elif ext in ('.docx', '.doc'):
             detected_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

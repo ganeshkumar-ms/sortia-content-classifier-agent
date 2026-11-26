@@ -242,7 +242,10 @@ export default function App() {
         const aiCards = container.querySelectorAll('.bubble.ai')
         const lastAi = aiCards[aiCards.length - 1]
         if (lastAi) {
-          container.scrollTo({ top: Math.max(0, lastAi.offsetTop - 24), behavior: 'smooth' })
+          const containerRect = container.getBoundingClientRect()
+          const aiRect = lastAi.getBoundingClientRect()
+          const targetTop = Math.max(0, container.scrollTop + (aiRect.top - containerRect.top) - 16)
+          container.scrollTo({ top: targetTop, behavior: 'smooth' })
           return
         }
       }
@@ -325,12 +328,23 @@ export default function App() {
   }
 
   function handleDeleteSession(id) {
-    setSessions(prev => prev.filter(s => s.id !== id))
+    const idx = sessions.findIndex(s => s.id === id)
+    const remaining = sessions.filter(s => s.id !== id)
+    setSessions(remaining)
     if (id === currentSessionId) {
-      setCurrentSessionId(null)
-      setMessages([])
-      setTitle('New conversation')
-      setActiveViewerDoc(null)
+      if (remaining.length > 0) {
+        const nextSess = remaining[idx >= 0 && idx < remaining.length ? idx : remaining.length - 1]
+        setCurrentSessionId(nextSess.id)
+        setMessages(nextSess.messages || [])
+        setTitle(nextSess.title || 'New conversation')
+        setActiveViewerDoc(null)
+        setView('chat')
+      } else {
+        setCurrentSessionId(null)
+        setMessages([])
+        setTitle('New conversation')
+        setActiveViewerDoc(null)
+      }
     }
   }
 
@@ -718,12 +732,18 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="messages" ref={messagesRef} id="messages" ref={messagesRef} aria-live="polite">
-                {messages.length === 0 && (
-                  <div className="card emptyCard" style={{ margin: '40px auto' }}>
-                    <small>EMPTY WORKSPACE</small>
-                    <b>No content classified yet</b>
-                    <p>Message SORTIA or attach an invoice, policy, contract, notice, or tech doc below.</p>
+              <div className="messages" ref={messagesRef} id="messages" aria-live="polite">
+                {messages.length === 0 && !loading && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#849bb4', maxWidth: '520px', margin: '0 auto', padding: '24px' }}>
+                    <div style={{ display: 'inline-flex', padding: '13px', borderRadius: '14px', background: 'rgba(7, 140, 255, 0.1)', border: '1px solid rgba(7, 140, 255, 0.25)', color: '#38bdf8', marginBottom: '14px' }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </div>
+                    <b style={{ display: 'block', color: '#fff', fontSize: '18px' }}>Start a new classification with SORTIA</b>
+                    <p style={{ fontSize: '14.5px', lineHeight: '1.65', marginTop: '10px', marginBottom: 0 }}>
+                      Upload an invoice, contract, SOP, policy, or technical guide below to determine its primary category, confidence ranking, ambiguity signals, and target repository route.
+                    </p>
                   </div>
                 )}
 

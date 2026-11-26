@@ -15,6 +15,79 @@ from services import document_service, file_validation, sortia_service
 
 BATCH_DIR = (Path('/tmp') if os.path.exists('/tmp') else Path(__file__).resolve().parent.parent / 'uploads') / 'batches'
 BATCH_DIR.mkdir(parents=True, exist_ok=True)
+BATCH_FILES_DIR = BATCH_DIR / 'files'
+BATCH_FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+_S3_BUCKET = os.environ.get('SORTIA_S3_BUCKET', '')
+_IS_LAMBDA = bool(os.getenv('AWS_LAMBDA_FUNCTION_NAME')) and bool(_S3_BUCKET)
+_s3_client = None
+
+
+def _get_s3():
+    global _s3_client
+    if not _IS_LAMBDA:
+        return None
+    if _s3_client is None:
+        try:
+            import boto3
+            _s3_client = boto3.client('s3', region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
+        except Exception:
+            return None
+    return _s3_client
+
+
+def _save_raw_file_bytes(batch_id: str, doc_id: str, raw_bytes: bytes):
+    if not raw_bytes:
+        return
+    key = f"{batch_id}__{doc_id}"
+    try:
+        (BATCH_FILES_DIR / key).write_bytes(raw_bytes)
+    except Exception:
+        pass
+    s3 = _get_s3()
+    if s3:
+        try:
+            s3.put_object(Bucket=_S3_BUCKET, Key=f"batches/files/{key}", Body=raw_bytes)
+        except Exception:
+            pass
+
+
+def _load_raw_file_bytes(batch_id: str, doc_id: str) -> bytes:
+    key = f"{batch_id}__{doc_id}"
+    local_f = BATCH_FILES_DIR / key
+    if local_f.exists():
+        try:
+            return local_f.read_bytes()
+        except Exception:
+            pass
+    s3 = _get_s3()
+    if s3:
+        try:
+            obj = s3.get_object(Bucket=_S3_BUCKET, Key=f"batches/files/{key}")
+            data = obj['Body'].read()
+            try:
+                local_f.write_bytes(data)
+            except Exception:
+                pass
+            return data
+        except Exception:
+            pass
+    return b''
+
+
+def _delete_raw_file_bytes(batch_id: str, doc_id: str = None):
+    prefix = f"{batch_id}__{doc_id}" if doc_id else f"{batch_id}__"
+    try:
+        for p in BATCH_FILES_DIR.glob(f"{prefix}*"):
+            p.unlink(missing_ok=True)
+    except Exception:
+        pass
+    s3 = _get_s3()
+    if s3 and doc_id:
+        try:
+            s3.delete_object(Bucket=_S3_BUCKET, Key=f"batches/files/{batch_id}__{doc_id}")
+        except Exception:
+            pass
 
 # Active in-memory locks/cache to prevent concurrent write collisions
 _batch_locks = {}
@@ -35,22 +108,41 @@ def _batch_file(batch_id: str) -> Path:
 def _save_batch(batch_data: dict):
     batch_id = batch_data['batch_id']
     lock = _get_batch_lock(batch_id)
+    payload = json.dumps(batch_data, indent=2)
     with lock:
         try:
-            _batch_file(batch_id).write_text(json.dumps(batch_data, indent=2), encoding='utf-8')
+            _batch_file(batch_id).write_text(payload, encoding='utf-8')
         except Exception as e:
             print(f"[BatchService] Error saving batch {batch_id}: {e}")
+        s3 = _get_s3()
+        if s3:
+            try:
+                s3.put_object(Bucket=_S3_BUCKET, Key=f"batches/{batch_id}.json", Body=payload.encode('utf-8'))
+            except Exception:
+                pass
 
 
 def _load_batch(batch_id: str) -> dict:
     f = _batch_file(batch_id)
-    if not f.exists():
-        return None
-    try:
-        return json.loads(f.read_text(encoding='utf-8'))
-    except Exception as e:
-        print(f"[BatchService] Error loading batch {batch_id}: {e}")
-        return None
+    if f.exists():
+        try:
+            return json.loads(f.read_text(encoding='utf-8'))
+        except Exception as e:
+            print(f"[BatchService] Error loading batch {batch_id}: {e}")
+    s3 = _get_s3()
+    if s3:
+        try:
+            obj = s3.get_object(Bucket=_S3_BUCKET, Key=f"batches/{batch_id}.json")
+            raw = obj['Body'].read().decode('utf-8')
+            data = json.loads(raw)
+            try:
+                f.write_text(raw, encoding='utf-8')
+            except Exception:
+                pass
+            return data
+        except Exception:
+            pass
+    return None
 
 
 def _format_target_location_paths(target_storage_location: str, primary_cat: str, owner_org: str, unique_id: str, std_filename: str, fallback_path: str) -> tuple[str, str]:
@@ -203,6 +295,7 @@ def create_batch(files: list, batch_name: str = None, target_storage_location: s
             'result': None,
             '_bytes': b  # Temporary in-memory for worker
         })
+        _save_raw_file_bytes(batch_id, doc_id, b)
 
     total_files = len(file_entries)
     batch_data = {
@@ -420,6 +513,183 @@ def get_batch(batch_id: str) -> dict:
     return _sanitize_batch_for_client(data)
 
 
+def _recompute_batch_stats(batch_data: dict):
+    files = batch_data.get('files') or []
+    total = len(files)
+    classified_cnt = sum(1 for f in files if f.get('status') == 'ROUTED')
+    exceptions_cnt = sum(1 for f in files if f.get('status') == 'EXCEPTION_QUEUE')
+    failed_cnt = sum(1 for f in files if f.get('status') == 'FAILED')
+    done_cnt = classified_cnt + exceptions_cnt + failed_cnt
+
+    cat_dist = {}
+    for f in files:
+        cat = f.get('primary_category')
+        if cat:
+            cat_dist[cat] = cat_dist.get(cat, 0) + 1
+
+    batch_data['total_files'] = total
+    batch_data['classified_count'] = classified_cnt
+    batch_data['exceptions_count'] = exceptions_cnt
+    batch_data['failed_count'] = failed_cnt
+    batch_data['processing_count'] = max(0, total - done_cnt)
+    batch_data['progress_pct'] = round((done_cnt / max(1, total)) * 100) if total > 0 else 100
+    batch_data['category_distribution'] = cat_dist
+    batch_data['similar_document_groups'] = _build_similar_document_groups(files, batch_data.get('target_storage_location') or '')
+    batch_data['status'] = 'COMPLETED' if (total == 0 or done_cnt >= total) else 'PROCESSING'
+    batch_data['updated_at'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+
+def _load_or_restore_batch(batch_id: str, batch_snapshot: dict = None) -> dict:
+    data = _load_batch(batch_id)
+    if data:
+        return data
+    if isinstance(batch_snapshot, dict) and batch_snapshot.get('batch_id') == batch_id:
+        _save_batch(batch_snapshot)
+        return batch_snapshot
+    return None
+
+
+def delete_batch(batch_id: str) -> bool:
+    """Deletes a batch JSON and any cached raw files."""
+    _delete_raw_file_bytes(batch_id)
+    f = _batch_file(batch_id)
+    existed = f.exists()
+    try:
+        f.unlink(missing_ok=True)
+    except Exception:
+        pass
+    s3 = _get_s3()
+    if s3:
+        try:
+            s3.delete_object(Bucket=_S3_BUCKET, Key=f"batches/{batch_id}.json")
+            existed = True
+        except Exception:
+            pass
+    return existed or True
+
+
+def delete_batch_file(batch_id: str, doc_id: str, batch_snapshot: dict = None) -> dict:
+    """Removes a single document from an existing batch and recomputes counts."""
+    batch_data = _load_or_restore_batch(batch_id, batch_snapshot)
+    if not batch_data:
+        return None
+    batch_data['files'] = [f for f in (batch_data.get('files') or []) if f.get('doc_id') != doc_id]
+    _delete_raw_file_bytes(batch_id, doc_id)
+    _recompute_batch_stats(batch_data)
+    _save_batch(batch_data)
+    return _sanitize_batch_for_client(batch_data)
+
+
+def add_files_to_batch(batch_id: str, files: list, batch_snapshot: dict = None) -> dict:
+    """Appends new uploaded files (or ZIP contents) to an existing batch and classifies them."""
+    batch_data = _load_or_restore_batch(batch_id, batch_snapshot)
+    if not batch_data:
+        return None
+
+    extracted_files = []
+    for item in (files or []):
+        fname = item.get('filename') or 'document'
+        content_bytes = item.get('bytes') or b''
+        if fname.lower().endswith('.zip') and len(content_bytes) > 0:
+            try:
+                with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
+                    for name in zf.namelist():
+                        if name.startswith('__MACOSX') or name.endswith('/') or '/.' in name:
+                            continue
+                        sub_bytes = zf.read(name)
+                        if sub_bytes and len(sub_bytes) > 0:
+                            extracted_files.append({'filename': Path(name).name, 'bytes': sub_bytes})
+            except Exception:
+                extracted_files.append(item)
+        else:
+            extracted_files.append(item)
+
+    existing_hashes = {str(f.get('size_bytes', 0)) + (f.get('filename') or '').lower() for f in (batch_data.get('files') or [])}
+    new_entries = []
+    for idx, item in enumerate(extracted_files):
+        fname = item.get('filename') or f"document_{idx + 1}.txt"
+        b = item.get('bytes') or b''
+        doc_id = f"DOC-{uuid.uuid4().hex[:6].upper()}"
+        h = str(len(b)) + fname.lower()
+        is_dup = h in existing_hashes
+        existing_hashes.add(h)
+        entry = {
+            'doc_id': doc_id,
+            'filename': fname,
+            'standardized_filename': fname,
+            'owner_organization': '',
+            'unique_entity_id': '',
+            'size_bytes': len(b),
+            'status': 'PROCESSING',
+            'is_duplicate': is_dup,
+            'primary_category': '',
+            'subtype': '',
+            'confidence': 0,
+            'ambiguity_level': 'Low',
+            'ambiguity_score': 0,
+            'sensitivity': 'Internal',
+            'destination_repository': '',
+            'similar_group_folder': '',
+            'destination_path': '',
+            'stored_on_disk': False,
+            'processing_time_ms': 0,
+            'error_message': '',
+            'result': None,
+            '_bytes': b,
+        }
+        _save_raw_file_bytes(batch_id, doc_id, b)
+        new_entries.append(entry)
+
+    if new_entries:
+        batch_data.setdefault('files', []).extend([{k: v for k, v in e.items() if k != '_bytes'} for e in new_entries])
+        batch_data['total_files'] = len(batch_data['files'])
+        batch_data['status'] = 'PROCESSING'
+        _save_batch(batch_data)
+        _process_batch_worker(batch_id, new_entries)
+
+    final_batch = _load_batch(batch_id) or batch_data
+    return _sanitize_batch_for_client(final_batch)
+
+
+def rerun_batch(batch_id: str, files: list = None, batch_snapshot: dict = None) -> dict:
+    """Re-runs classification for all files in an existing batch."""
+    batch_data = _load_or_restore_batch(batch_id, batch_snapshot)
+    if not batch_data:
+        return None
+
+    uploaded_by_name = {}
+    for item in (files or []):
+        if item.get('filename') and item.get('bytes'):
+            uploaded_by_name[item['filename']] = item['bytes']
+
+    entries = []
+    for f in (batch_data.get('files') or []):
+        doc_id = f.get('doc_id')
+        fname = f.get('filename') or 'document.txt'
+        raw_bytes = uploaded_by_name.get(fname) or _load_raw_file_bytes(batch_id, doc_id)
+        if not raw_bytes:
+            # Fallback to stored classification summary or filename if raw bytes were cleared
+            summary_txt = ''
+            if isinstance(f.get('result'), dict):
+                summary_txt = f['result'].get('summary') or ''
+            raw_bytes = f"{fname}\n{summary_txt}".strip().encode('utf-8')
+        else:
+            _save_raw_file_bytes(batch_id, doc_id, raw_bytes)
+        f['status'] = 'PROCESSING'
+        f['error_message'] = ''
+        entries.append({**f, '_bytes': raw_bytes})
+
+    batch_data['status'] = 'PROCESSING' if entries else 'COMPLETED'
+    batch_data['processing_count'] = len(entries)
+    _save_batch(batch_data)
+
+    if entries:
+        _process_batch_worker(batch_id, entries)
+
+    final_batch = _load_batch(batch_id) or batch_data
+    return _sanitize_batch_for_client(final_batch)
+
+
 def retry_batch_failed(batch_id: str) -> dict:
     """Retries failed or exception files in a batch."""
     batch_data = _load_batch(batch_id)
@@ -430,22 +700,20 @@ def retry_batch_failed(batch_id: str) -> dict:
     if not to_retry:
         return _sanitize_batch_for_client(batch_data)
 
+    entries = []
     for f in to_retry:
         f['status'] = 'PROCESSING'
         f['error_message'] = ''
+        raw_bytes = _load_raw_file_bytes(batch_id, f.get('doc_id')) or f.get('filename', '').encode('utf-8')
+        entries.append({**f, '_bytes': raw_bytes})
 
     batch_data['status'] = 'PROCESSING'
     batch_data['processing_count'] = len(to_retry)
     _save_batch(batch_data)
 
-    # In production, files would be re-read from storage; here we synthesize re-processing
-    t = threading.Thread(
-        target=_process_batch_worker,
-        args=(batch_id, [{**f, '_bytes': f.get('filename', '').encode('utf-8')} for f in to_retry]),
-        daemon=True
-    )
-    t.start()
-    return _sanitize_batch_for_client(batch_data)
+    _process_batch_worker(batch_id, entries)
+    final_batch = _load_batch(batch_id) or batch_data
+    return _sanitize_batch_for_client(final_batch)
 
 
 def export_batch_csv(batch_id: str) -> str:
