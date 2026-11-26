@@ -250,7 +250,7 @@ export default function App() {
         if (lastAi) {
           const containerRect = container.getBoundingClientRect()
           const aiRect = lastAi.getBoundingClientRect()
-          const targetTop = Math.max(0, container.scrollTop + (aiRect.top - containerRect.top) - 44)
+          const targetTop = Math.max(0, container.scrollTop + (aiRect.top - containerRect.top) - 16)
           container.scrollTo({ top: targetTop, behavior: 'smooth' })
           return
         }
